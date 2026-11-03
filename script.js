@@ -597,7 +597,8 @@ if (btnKirimAi && inputAiPrompt) {
 }
 
 function AIProsesTransaksi(kalimat) {
-    let teksLower = kalimat.toLowerCase();
+    let teksAsli = kalimat.trim();
+    let teksLower = teksAsli.toLowerCase();
 
     // 1. Validasi Kategori (Pengeluaran / Penerimaan)
     let jenis = "pengeluaran"; // default
@@ -609,10 +610,10 @@ function AIProsesTransaksi(kalimat) {
         }
     }
 
-    // 2. Ekstraksi Tanggal dari Kalimat (Contoh: "02 november 2026" atau "2 nov")
+    // 2. Ekstraksi Tanggal (Contoh: "02 november 2026", "2 nov", atau format angka "02/11/2026")
     let tanggalTransaksi = getTodayDateString(); // Default tanggal hari ini
-    
-    // Deteksi pola tanggal seperti "02 november 2026" atau "2 nov"
+    let matchedDateStr = ""; // Menyimpan string tanggal asli untuk dihapus dari uraian
+
     const bulanMap = {
         "januari": "01", "jan": "01", "februari": "02", "feb": "02",
         "maret": "03", "mar": "03", "april": "04", "apr": "04",
@@ -622,59 +623,84 @@ function AIProsesTransaksi(kalimat) {
         "november": "11", "nov": "11", "desember": "12", "des": "12", "dec": "12"
     };
 
-    let regexTanggal = /(\d{1,2})\s+([a-z]+)(?:\s+(\d{4}))?/i;
-    let matchTgl = teksLower.match(regexTanggal);
-    
-    if (matchTgl) {
-        let hari = matchTgl[1].padStart(2, '0');
-        let namaBulanStr = matchTgl[2];
-        let tahun = matchTgl[3] || new Date().getFullYear(); // Jika tahun tidak disebut, pakai tahun aktif
-        
-        if (bulanMap[namaBulanStr]) {
-            let bulan = bulanMap[namaBulanStr];
+    // Pola A: Format kata (misal: "02 november 2026" atau "2 nov")
+    let regexTglKata = /(?:tanggal|tgl)?\s*(\d{1,2})\s+([a-z]+)(?:\s+(\d{4}))?/i;
+    let matchKata = teksLower.match(regexTglKata);
+
+    if (matchKata) {
+        matchedDateStr = matchKata[0];
+        let hari = matchKata[1].padStart(2, '0');
+        let bulanStr = matchKata[2];
+        let tahun = matchKata[3] || new Date().getFullYear();
+        if (bulanMap[bulanStr]) {
+            let bulan = bulanMap[bulanStr];
+            tanggalTransaksi = `${tahun}-${bulan}-${hari}`;
+        }
+    } else {
+        // Pola B: Format angka (misal: "02/11/2026" atau "2-11-26")
+        let regexTglAngka = /(?:tanggal|tgl)?\s*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/i;
+        let matchAngkaTgl = teksLower.match(regexTglAngka);
+        if (matchAngkaTgl) {
+            matchedDateStr = matchAngkaTgl[0];
+            let hari = matchAngkaTgl[1].padStart(2, '0');
+            let bulan = matchAngkaTgl[2].padStart(2, '0');
+            let tahun = matchAngkaTgl[3];
+            if (tahun.length === 2) tahun = "20" + tahun;
             tanggalTransaksi = `${tahun}-${bulan}-${hari}`;
         }
     }
 
-    // 3. Ekstraksi Nominal Harga (ribu, jt, juta, atau angka biasa)
+    // 3. Ekstraksi Nominal Harga (ribu, rb, juta, jt, atau angka biasa)
     let jumlah = 0;
-    if (teksLower.includes('juta') || teksLower.includes('jt')) {
-        let matchJuta = teksLower.match(/(\d+[\.,]?\d*)\s*(juta|jt)/);
-        if (matchJuta) {
-            jumlah = parseFloat(matchJuta[1].replace(',', '.')) * 1000000;
-        }
-    } else if (teksLower.includes('ribu') || teksLower.includes('rb')) {
-        let matchRibu = teksLower.match(/(\d+[\.,]?\d*)\s*(ribu|rb)/);
-        if (matchRibu) {
-            jumlah = parseFloat(matchRibu[1].replace(',', '.')) * 1000;
-        }
+    let matchedNominalStr = "";
+
+    let matchJuta = teksLower.match(/(\d+[\.,]?\d*)\s*(juta|jt)/);
+    let matchRibu = teksLower.match(/(\d+[\.,]?\d*)\s*(ribu|rb)/);
+
+    if (matchJuta) {
+        matchedNominalStr = matchJuta[0];
+        jumlah = parseFloat(matchJuta[1].replace(',', '.')) * 1000000;
+    } else if (matchRibu) {
+        matchedNominalStr = matchRibu[0];
+        jumlah = parseFloat(matchRibu[1].replace(',', '.')) * 1000;
     } else {
-        let matchAngka = teksLower.match(/\d+[\.,]?\d*/g);
+        let matchAngka = teksAsli.match(/\d+[\.,]?\d*/g);
         if (matchAngka) {
-            // Ambil angka yang bukan bagian dari tahun/tanggal (filter angka > 31 atau cari yang nominal uang)
-            let angkaList = matchAngka.map(n => parseInt(n.replace(/[\.,]/g, ''))).filter(n => n > 31 || n > 1000);
-            if (angkaList.length > 0) {
-                jumlah = Math.max(...angkaList);
+            // Filter agar tidak keliru mengambil tahun (misal 2026) sebagai nominal harga
+            let currentYearStr = String(filterTahun ? filterTahun.value : new Date().getFullYear());
+            let filtered = matchAngka.map(n => ({ original: n, val: parseFloat(n.replace(/\./g, '').replace(',', '.')) }))
+                                     .filter(item => item.original !== currentYearStr && item.val > 0);
+            
+            if (filtered.length > 0) {
+                jumlah = filtered[filtered.length - 1].val;
+                matchedNominalStr = filtered[filtered.length - 1].original;
             } else {
-                let semuaAngka = matchAngka.map(n => parseInt(n.replace(/[\.,]/g, '')));
-                jumlah = semuaAngka[semuaAngka.length - 1]; // Ambil angka terakhir jika kecil
+                jumlah = parseFloat(matchAngka[0].replace(/\./g, '').replace(',', '.'));
+                matchedNominalStr = matchAngka[0];
             }
         }
     }
 
     if (isNaN(jumlah) || jumlah <= 0) {
-        aiResponse.innerText = "❌ AI gagal mendeteksi nominal harga. Pastikan ada penyebutan angka/nominal (contoh: 50rb atau 1 juta).";
+        aiResponse.innerText = "❌ AI gagal mendeteksi nominal harga. Contoh format: 'Beli roko 25rb'.";
         return;
     }
 
-    // 4. Pemisahan Uraian (Membersihkan kata tanggal/angka nominal dari teks untuk dijadikan uraian bersih)
-    let uraianBersih = kalimat
-        .replace(/tanggal\s+\d{1,2}\s+[a-z]+\s*(\d{4})?/gi, '') // Hapus teks tanggal
-        .replace(/\d+[\.,]?\d*\s*(juta|jt|ribu|rb)/gi, '') // Hapus teks nominal ber-satuan
-        .replace(/\b(rp|idr)\b/gi, '') // Hapus kata 'rp'
-        .trim();
+    // 4. Pembersihan Uraian (Membuang teks tanggal, nominal, dan kata sambung agar bersih)
+    let uraianBersih = teksAsli;
+    if (matchedDateStr) {
+        uraianBersih = uraianBersih.replace(new RegExp(matchedDateStr, 'gi'), '');
+    }
+    if (matchedNominalStr) {
+        uraianBersih = uraianBersih.replace(new RegExp(matchedNominalStr + '\\s*(ribu|rb|juta|jt)?', 'gi'), '');
+    }
     
-    // Rapikan huruf kapital di awal kalimat uraian
+    // Hapus kata-kata sisa yang tidak diperlukan dalam uraian
+    uraianBersih = uraianBersih
+        .replace(/\b(tanggal|tgl|pada|sebesar|harga|senilai|rp|idr)\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
     uraianBersih = uraianBersih.charAt(0).toUpperCase() + uraianBersih.slice(1);
     if (!uraianBersih) uraianBersih = "Transaksi AI";
 
@@ -685,22 +711,21 @@ function AIProsesTransaksi(kalimat) {
         id: Date.now(),
         noBukti: noBuktiVal,
         tanggal: tanggalTransaksi, // Tanggal hasil ekstraksi AI
-        uraian: uraianBersih,     // Uraian bersih terpisah
+        uraian: uraianBersih,     // Uraian bersih (terpisah dari tanggal & harga)
         jenis: jenis,             // Kategori terpisah (pengeluaran / penerimaan)
         jumlah: jumlah,           // Harga / nominal terpisah
         fileName: null,
         fileData: null
     });
 
-    // Otomatis sesuaikan filter bulan & tahun dropdown agar langsung nampak di tabel sesuai tanggal transaksi
+    // Otomatis sesuaikan filter bulan & tahun dropdown agar langsung tampil di tabel
     let tglSplit = tanggalTransaksi.split('-');
     if (filterTahun) filterTahun.value = tglSplit[0];
     if (filterBulan) filterBulan.value = tglSplit[1];
 
-    aiResponse.innerText = `✨ Sukses! Kategori: [${jenis.toUpperCase()}] | Tgl: ${tanggalTransaksi} | Uraian: "${uraianBersih}" | Harga: Rp ${jumlah.toLocaleString('id-ID')}`;
+    aiResponse.innerText = `✨ Sukses! [${jenis.toUpperCase()}] | Tgl: ${tanggalTransaksi} | Uraian: "${uraianBersih}" | Harga: Rp ${jumlah.toLocaleString('id-ID')}`;
     inputAiPrompt.value = ""; 
     
-    // Refresh aplikasi & tabel
     currentPage = 1;
     perbaruiAplikasi();
 }
