@@ -204,11 +204,7 @@ function perbaruiAplikasi() {
         return matchPeriode && matchTab && matchSearch;
     });
 
-    renderTabel(transaksiTampil, totalPenerimaan, totalPengeluaran, sisaKas);
-    function perbaruiAplikasi() {
-    // ... (kode kalkulasi yang sudah ada) ...
-    
-    renderTabel(transaksiTampil, totalPenerimaan, totalPengeluaran, sisaKas);
+    renderTabel{(transaksiTampil, totalPenerimaan, totalPengeluaran, sisaKas);
     buatQRCode(); // Panggil pembuatan QR Code otomatis di sini
     simpanData();
     }
@@ -758,6 +754,32 @@ btnSimpanPengaturan.addEventListener('click', () => {
     alert("Pengaturan disimpan!");
 });
 
+    
+// ==========================================
+// FUNGSI GENERATE QR CODE OTOMATIS
+// ==========================================
+function buatQRCode() {
+    const container = document.getElementById('qrcodeContainer');
+    if (!container) return;
+    
+    // Kosongkan dulu agar tidak menumpuk
+    container.innerHTML = "";
+
+    // Ambil URL website saat ini (misal link GitHub Pages Anda, atau localhost)
+    let urlWebsite = window.location.href;
+
+    // Buat QR Code
+    new QRCode(container, {
+        text: urlWebsite,
+        width: 75,
+        height: 75,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+    });
+}
+
+
 btnCetak.addEventListener('click', () => window.print());
 btnEkspor.addEventListener('click', () => {
     let ttd = konfigurasi.tandaTanganUrl ? `<img src="${konfigurasi.tandaTanganUrl}" height="60"/>` : `<br/><br/>`;
@@ -795,30 +817,6 @@ if (btnResetData) {
             perbaruiAplikasi();
             alert("Semua data berhasil direset menjadi nol!");
         }
-    });
-}
-
-// ==========================================
-// FUNGSI GENERATE QR CODE OTOMATIS
-// ==========================================
-function buatQRCode() {
-    const container = document.getElementById('qrcodeContainer');
-    if (!container) return;
-    
-    // Kosongkan dulu agar tidak menumpuk
-    container.innerHTML = "";
-
-    // Ambil URL website saat ini (misal link GitHub Pages Anda, atau localhost)
-    let urlWebsite = window.location.href;
-
-    // Buat QR Code
-    new QRCode(container, {
-        text: urlWebsite,
-        width: 75,
-        height: 75,
-        colorDark: "#000000",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.H
     });
 }
 
