@@ -205,8 +205,13 @@ function perbaruiAplikasi() {
     });
 
     renderTabel(transaksiTampil, totalPenerimaan, totalPengeluaran, sisaKas);
+    function perbaruiAplikasi() {
+    // ... (kode kalkulasi yang sudah ada) ...
+    
+    renderTabel(transaksiTampil, totalPenerimaan, totalPengeluaran, sisaKas);
+    buatQRCode(); // Panggil pembuatan QR Code otomatis di sini
     simpanData();
-}
+    }
 
 function renderTabel(data, totalPenerimaan, totalPengeluaran, sisaKas) {
     tabelBody.innerHTML = '';
@@ -793,5 +798,27 @@ if (btnResetData) {
     });
 }
 
+// ==========================================
+// FUNGSI GENERATE QR CODE OTOMATIS
+// ==========================================
+function buatQRCode() {
+    const container = document.getElementById('qrcodeContainer');
+    if (!container) return;
+    
+    // Kosongkan dulu agar tidak menumpuk
+    container.innerHTML = "";
 
+    // Ambil URL website saat ini (misal link GitHub Pages Anda, atau localhost)
+    let urlWebsite = window.location.href;
+
+    // Buat QR Code
+    new QRCode(container, {
+        text: urlWebsite,
+        width: 75,
+        height: 75,
+        colorDark: "#000000",
+        colorLight: "#ffffff",
+        correctLevel: QRCode.CorrectLevel.H
+    });
+}
 
