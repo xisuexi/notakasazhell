@@ -478,110 +478,6 @@ if (btnKirimAi && inputAiPrompt) {
         AIProsesTransaksi(teks);
     });
 }
-
-function AIProsesTransaksi(kalimat) {
-    let teksLower = kalimat.toLowerCase();
-    let jenis = "pengeluaran";
-    const kataPenerimaan = ["terima", "dapat", "masuk", "pendapatan", "sumbangan", "hibah", "bantuan", "setoran"];
-    for (let kata of kataPenerimaan) {
-        if (teksLower.includes(kata)) { jenis = "penerimaan"; break; }
-    }
-
-    let jumlah = 0;
-    if (teksLower.includes('juta') || teksLower.includes('jt')) {
-        let match = teksLower.match(/(\d+[\.,]?\d*)\s*(juta|jt)/);
-        if (match) jumlah = parseFloat(match[1].replace(',', '.')) * 1000000;
-    } else if (teksLower.includes('ribu') || teksLower.includes('rb')) {
-        let match = teksLower.match(/(\d+[\.,]?\d*)\s*(ribu|rb)/);
-        if (match) jumlah = parseFloat(match[1].replace(',', '.')) * 1000;
-    } else {
-        let matchAngka = teksLower.match(/\d+[\.,]?\d*/g);
-        if (matchAngka) {
-            let angkaList = matchAngka.map(n => parseInt(n.replace(/[\.,]/g, '')));
-            jumlah = Math.max(...angkaList);
-        }
-    }
-
-    if (isNaN(jumlah) || jumlah <= 0) {
-        aiResponse.innerText = "❌ AI gagal mendeteksi nominal angka.";
-        return;
-    }
-
-    let uraian = kalimat.charAt(0).toUpperCase() + kalimat.slice(1);
-    let noBuktiVal = `AI-${String(daftarTransaksi.length + 1).padStart(3, '0')}`;
-    let tglHariIni = getTodayDateString();
-
-    daftarTransaksi.push({
-        id: Date.now(),
-        noBukti: noBuktiVal,
-        tanggal: tglHariIni,
-        uraian: uraian,
-        jenis: jenis,
-        jumlah: jumlah,
-        fileName: null,
-        fileData: null
-    });
-
-    aiResponse.innerText = `✨ Sukses! [${jenis.toUpperCase()}] "${uraian}" sebesar Rp ${jumlah.toLocaleString('id-ID')}`;
-    inputAiPrompt.value = "";
-    perbaruiAplikasi();
-}
-
-// Tombol Cepat Rekonsiliasi & Drawing Canvas
-if (btnTambahKas) btnTambahKas.addEventListener('click', () => { let v = prompt("Kas Tunai:", konfigurasi.kasTunai); if(v!==null){konfigurasi.kasTunai=parseInt(v)||0; perbaruiAplikasi();} });
-if (btnSaldoBank) btnSaldoBank.addEventListener('click', () => { let v = prompt("Saldo Bank:", konfigurasi.saldoBank); if(v!==null){konfigurasi.saldoBank=parseInt(v)||0; perbaruiAplikasi();} });
-if (btnPajak) btnPajak.addEventListener('click', () => { let v = prompt("Pajak Belum Disetor:", konfigurasi.pajakBelumDisetor); if(v!==null){konfigurasi.pajakBelumDisetor=parseInt(v)||0; perbaruiAplikasi();} });
-
-let isDrawing = false, lastX = 0, lastY = 0;
-btnBukaDrawing.addEventListener('click', () => { modalDrawing.style.display = 'block'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; });
-btnTutupDrawing.addEventListener('click', () => { modalDrawing.style.display = 'none'; });
-btnClearCanvas.addEventListener('click', () => { ctx.clearRect(0, 0, canvas.width, canvas.height); });
-
-canvas.addEventListener('mousedown', (e) => { isDrawing = true; lastX = e.offsetX; lastY = e.offsetY; });
-canvas.addEventListener('mousemove', (e) => { if(!isDrawing)return; ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); lastX = e.offsetX; lastY = e.offsetY; });
-window.addEventListener('mouseup', () => { isDrawing = false; });
-btnSimpanDrawing.addEventListener('click', () => {
-    konfigurasi.tandaTanganUrl = canvas.toDataURL('image/png');
-    imgTandaTangan.src = konfigurasi.tandaTanganUrl;
-    imgTandaTangan.style.display = 'block';
-    modalDrawing.style.display = 'none';
-    perbaruiAplikasi();
-});
-
-btnPengaturan.addEventListener('click', () => {
-    inputProgram.value = konfigurasi.program;
-    inputKegiatan.value = konfigurasi.kegiatan;
-    inputSubKegiatan.value = konfigurasi.subKegiatan;
-    inputSaldoAwal.value = konfigurasi.saldoAwal;
-    inputNamaKPA.value = konfigurasi.namaKPA;
-    inputNIPKPA.value = konfigurasi.nipKPA;
-    modalPengaturan.style.display = 'block';
-});
-btnTutupModal.addEventListener('click', () => { modalPengaturan.style.display = 'none'; modalDrawing.style.display = 'none'; });
-btnSimpanPengaturan.addEventListener('click', () => {
-    konfigurasi.program = inputProgram.value;
-    konfigurasi.kegiatan = inputKegiatan.value;
-    konfigurasi.subKegiatan = inputSubKegiatan.value;
-    konfigurasi.saldoAwal = parseInt(inputSaldoAwal.value) || 0;
-    konfigurasi.namaKPA = inputNamaKPA.value;
-    konfigurasi.nipKPA = inputNIPKPA.value;
-    modalPengaturan.style.display = 'none';
-    perbaruiAplikasi();
-    alert("Pengaturan disimpan!");
-});
-
-btnCetak.addEventListener('click', () => window.print());
-btnEkspor.addEventListener('click', () => {
-    let ttd = konfigurasi.tandaTanganUrl ? `<img src="${konfigurasi.tandaTanganUrl}" height="60"/>` : `<br/><br/>`;
-    let html = `<html><head><meta charset="utf-8"></head><body><h3>Buku Kas Umum</h3><table border="1">${document.querySelector('table').innerHTML}</table><br/>${ttd}</body></html>`;
-    let blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel' });
-    let a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `BKU_${filterBulan.value}_${filterTahun.value}.xls`;
-    a.click();
-});
-document.addEventListener("DOMContentLoaded", () => perbaruiAplikasi());
-
 // ==========================================
 // MESIN AI: PEMISAH URAIAN, HARGA, TANGGAL & KATEGORI
 // ==========================================
@@ -729,6 +625,62 @@ function AIProsesTransaksi(kalimat) {
     currentPage = 1;
     perbaruiAplikasi();
 }
+
+// Tombol Cepat Rekonsiliasi & Drawing Canvas
+if (btnTambahKas) btnTambahKas.addEventListener('click', () => { let v = prompt("Kas Tunai:", konfigurasi.kasTunai); if(v!==null){konfigurasi.kasTunai=parseInt(v)||0; perbaruiAplikasi();} });
+if (btnSaldoBank) btnSaldoBank.addEventListener('click', () => { let v = prompt("Saldo Bank:", konfigurasi.saldoBank); if(v!==null){konfigurasi.saldoBank=parseInt(v)||0; perbaruiAplikasi();} });
+if (btnPajak) btnPajak.addEventListener('click', () => { let v = prompt("Pajak Belum Disetor:", konfigurasi.pajakBelumDisetor); if(v!==null){konfigurasi.pajakBelumDisetor=parseInt(v)||0; perbaruiAplikasi();} });
+
+let isDrawing = false, lastX = 0, lastY = 0;
+btnBukaDrawing.addEventListener('click', () => { modalDrawing.style.display = 'block'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; });
+btnTutupDrawing.addEventListener('click', () => { modalDrawing.style.display = 'none'; });
+btnClearCanvas.addEventListener('click', () => { ctx.clearRect(0, 0, canvas.width, canvas.height); });
+
+canvas.addEventListener('mousedown', (e) => { isDrawing = true; lastX = e.offsetX; lastY = e.offsetY; });
+canvas.addEventListener('mousemove', (e) => { if(!isDrawing)return; ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); lastX = e.offsetX; lastY = e.offsetY; });
+window.addEventListener('mouseup', () => { isDrawing = false; });
+btnSimpanDrawing.addEventListener('click', () => {
+    konfigurasi.tandaTanganUrl = canvas.toDataURL('image/png');
+    imgTandaTangan.src = konfigurasi.tandaTanganUrl;
+    imgTandaTangan.style.display = 'block';
+    modalDrawing.style.display = 'none';
+    perbaruiAplikasi();
+});
+
+btnPengaturan.addEventListener('click', () => {
+    inputProgram.value = konfigurasi.program;
+    inputKegiatan.value = konfigurasi.kegiatan;
+    inputSubKegiatan.value = konfigurasi.subKegiatan;
+    inputSaldoAwal.value = konfigurasi.saldoAwal;
+    inputNamaKPA.value = konfigurasi.namaKPA;
+    inputNIPKPA.value = konfigurasi.nipKPA;
+    modalPengaturan.style.display = 'block';
+});
+btnTutupModal.addEventListener('click', () => { modalPengaturan.style.display = 'none'; modalDrawing.style.display = 'none'; });
+btnSimpanPengaturan.addEventListener('click', () => {
+    konfigurasi.program = inputProgram.value;
+    konfigurasi.kegiatan = inputKegiatan.value;
+    konfigurasi.subKegiatan = inputSubKegiatan.value;
+    konfigurasi.saldoAwal = parseInt(inputSaldoAwal.value) || 0;
+    konfigurasi.namaKPA = inputNamaKPA.value;
+    konfigurasi.nipKPA = inputNIPKPA.value;
+    modalPengaturan.style.display = 'none';
+    perbaruiAplikasi();
+    alert("Pengaturan disimpan!");
+});
+
+btnCetak.addEventListener('click', () => window.print());
+btnEkspor.addEventListener('click', () => {
+    let ttd = konfigurasi.tandaTanganUrl ? `<img src="${konfigurasi.tandaTanganUrl}" height="60"/>` : `<br/><br/>`;
+    let html = `<html><head><meta charset="utf-8"></head><body><h3>Buku Kas Umum</h3><table border="1">${document.querySelector('table').innerHTML}</table><br/>${ttd}</body></html>`;
+    let blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel' });
+    let a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `BKU_${filterBulan.value}_${filterTahun.value}.xls`;
+    a.click();
+});
+document.addEventListener("DOMContentLoaded", () => perbaruiAplikasi());
+
 
 const btnResetData = document.getElementById('btnResetData');
 
