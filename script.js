@@ -71,6 +71,10 @@ const inputPencarian = document.querySelector('.search-bar input');
 const tombolTabs = document.querySelectorAll('.tabs button');
 const tabelBody = document.querySelector('table tbody');
 
+const inputAiPrompt = document.getElementById('inputAiPrompt');
+const btnKirimAi = document.getElementById('btnKirimAi');
+const aiResponse = document.getElementById('aiResponse');
+
 // Tombol Aksi Utama
 const btnCetak = document.getElementById('btnCetak');
 const btnEkspor = document.getElementById('btnEkspor');
@@ -112,10 +116,9 @@ const inputNIPKPA = document.getElementById('inputNIPKPA');
 
 function formatRupiah(angka) {
     return 'Rp ' + angka.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-const inputAiPrompt = document.getElementById('inputAiPrompt');
-const btnKirimAi = document.getElementById('btnKirimAi');
-const aiResponse = document.getElementById('aiResponse');
 }
+
+
 // ==========================================
 // 3. FUNGSI UTAMA RENDER & KALKULASI
 // ==========================================
@@ -526,10 +529,13 @@ btnEkspor.addEventListener('click', function() {
 document.addEventListener("DOMContentLoaded", function() {
     perbaruiAplikasi();
 });
-
 // ==========================================
 // MESIN AI: NATURAL LANGUAGE PROCESSING (NLP)
 // ==========================================
+const inputAiPrompt = document.getElementById('inputAiPrompt');
+const btnKirimAi = document.getElementById('btnKirimAi');
+const aiResponse = document.getElementById('aiResponse');
+
 if (btnKirimAi && inputAiPrompt) {
     btnKirimAi.addEventListener('click', function() {
         let teks = inputAiPrompt.value.trim();
@@ -537,7 +543,6 @@ if (btnKirimAi && inputAiPrompt) {
             aiResponse.innerText = "⚠️ Masukkan kalimat perintah untuk AI terlebih dahulu.";
             return;
         }
-
         AIProsesTransaksi(teks);
     });
 }
@@ -558,25 +563,19 @@ function AIProsesTransaksi(kalimat) {
     // 2. Ekstraksi Nominal Angka & Satuan (ribu, jt, juta)
     let jumlah = 0;
     
-    // Cek jika ada kata 'juta' atau 'jt'
     if (teksLower.includes('juta') || teksLower.includes('jt')) {
         let matchJuta = teksLower.match(/(\d+[\.,]?\d*)\s*(juta|jt)/);
         if (matchJuta) {
             jumlah = parseFloat(matchJuta[1].replace(',', '.')) * 1000000;
         }
-    } 
-    // Cek jika ada kata 'ribu' atau 'rb'
-    else if (teksLower.includes('ribu') || teksLower.includes('rb')) {
+    } else if (teksLower.includes('ribu') || teksLower.includes('rb')) {
         let matchRibu = teksLower.match(/(\d+[\.,]?\d*)\s*(ribu|rb)/);
         if (matchRibu) {
             jumlah = parseFloat(matchRibu[1].replace(',', '.')) * 1000;
         }
-    } 
-    // Cek angka biasa (misal: 50000 atau 50.000)
-    else {
+    } else {
         let matchAngka = teksLower.match(/\d+[\.,]?\d*/g);
         if (matchAngka) {
-            // Ambil angka terbesar yang ditemukan di kalimat sebagai nominal
             let angkaList = matchAngka.map(n => parseInt(n.replace(/[\.,]/g, '')));
             jumlah = Math.max(...angkaList);
         }
@@ -587,12 +586,11 @@ function AIProsesTransaksi(kalimat) {
         return;
     }
 
-    // 3. Bersihkan Uraian (ambil seluruh kalimat sebagai uraian)
+    // 3. Bersihkan Uraian & Masukkan ke Data
     let uraian = kalimat.charAt(0).toUpperCase() + kalimat.slice(1);
     let noBuktiVal = `AI-${String(daftarTransaksi.length + 1).padStart(3, '0')}`;
     let tglHariIni = getTodayDateString();
 
-    // 4. Masukkan ke Daftar Transaksi secara otomatis
     daftarTransaksi.push({
         id: Date.now(),
         noBukti: noBuktiVal,
@@ -603,11 +601,8 @@ function AIProsesTransaksi(kalimat) {
         fileName: null
     });
 
-    // 5. Berikan respon sukses dari AI
     aiResponse.innerText = `✨ Sukses! AI mencatat [${jenis.toUpperCase()}] "${uraian}" sebesar Rp ${jumlah.toLocaleString('id-ID')}`;
-    inputAiPrompt.value = ""; // Bersihkan input
+    inputAiPrompt.value = ""; 
     
-    // Perbarui tampilan tabel dan total kas
     perbaruiAplikasi();
 }
-
