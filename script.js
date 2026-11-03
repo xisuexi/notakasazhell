@@ -467,7 +467,6 @@ window.lihatFile = function(id) {
         win.document.write(`<iframe src="${trx.fileData}" frameborder="0" style="width:100%; height:100vh;"></iframe>`);
     }
 };
-
 // ==========================================
 // MESIN AI: PEMISAH URAIAN, HARGA, TANGGAL & KATEGORI
 // ==========================================
@@ -615,6 +614,7 @@ function AIProsesTransaksi(kalimat) {
     currentPage = 1;
     perbaruiAplikasi();
 }
+
 // Tombol Cepat Rekonsiliasi & Drawing Canvas
 if (btnTambahKas) btnTambahKas.addEventListener('click', () => { let v = prompt("Kas Tunai:", konfigurasi.kasTunai); if(v!==null){konfigurasi.kasTunai=parseInt(v)||0; perbaruiAplikasi();} });
 if (btnSaldoBank) btnSaldoBank.addEventListener('click', () => { let v = prompt("Saldo Bank:", konfigurasi.saldoBank); if(v!==null){konfigurasi.saldoBank=parseInt(v)||0; perbaruiAplikasi();} });
