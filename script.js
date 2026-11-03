@@ -32,7 +32,6 @@ function getTanggalHariIniFormat() {
     return new Date().toLocaleDateString('id-ID', options);
 }
 
-// Mendapatkan format YYYY-MM-DD untuk input date HTML
 function getTodayDateString() {
     const today = new Date();
     const yyyy = today.getFullYear();
@@ -70,10 +69,8 @@ const elWarningBox = document.querySelector('.warning-box');
 const inputPencarian = document.querySelector('.search-bar input');
 const tombolTabs = document.querySelectorAll('.tabs button');
 const tabelBody = document.querySelector('table tbody');
-
-const inputAiPrompt = document.getElementById('inputAiPrompt');
-const btnKirimAi = document.getElementById('btnKirimAi');
-const aiResponse = document.getElementById('aiResponse');
+const selectAllCheckbox = document.getElementById('selectAll');
+const btnHapusTerpilih = document.getElementById('btnHapusTerpilih');
 
 // Tombol Aksi Utama
 const btnCetak = document.getElementById('btnCetak');
@@ -84,11 +81,13 @@ const btnSaldoBank = document.getElementById('btnSaldoBank');
 const btnPajak = document.getElementById('btnPajak');
 const btnBukaDrawing = document.getElementById('btnBukaDrawing');
 
-// Modal Transaksi
+// Modal Transaksi & Edit
 const modalTransaksi = document.getElementById('modalTransaksi');
+const modalTitle = document.getElementById('modalTitle');
 const btnBukaModalTransaksi = document.getElementById('btnBukaModalTransaksi');
 const btnTutupModalTransaksi = document.getElementById('btnTutupModalTransaksi');
 const btnSimpanTransaksi = document.getElementById('btnSimpanTransaksi');
+const editIndexId = document.getElementById('editIndexId');
 const inputNoBukti = document.getElementById('inputNoBukti');
 const inputTanggal = document.getElementById('inputTanggal');
 const inputJenis = document.getElementById('inputJenis');
@@ -114,10 +113,14 @@ const inputSaldoAwal = document.getElementById('inputSaldoAwal');
 const inputNamaKPA = document.getElementById('inputNamaKPA');
 const inputNIPKPA = document.getElementById('inputNIPKPA');
 
+// Mesin AI Elemen
+const inputAiPrompt = document.getElementById('inputAiPrompt');
+const btnKirimAi = document.getElementById('btnKirimAi');
+const aiResponse = document.getElementById('aiResponse');
+
 function formatRupiah(angka) {
     return 'Rp ' + angka.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
-
 
 // ==========================================
 // 3. FUNGSI UTAMA RENDER & KALKULASI
@@ -192,6 +195,7 @@ function renderTabel(data, totalPenerimaan, totalPengeluaran, sisaKas) {
 
     let htmlContent = `
         <tr class="summary-row">
+            <td></td>
             <td>-</td>
             <td>-</td>
             <td><strong>Saldo Awal / Saldo Sebelumnya</strong></td>
@@ -203,7 +207,7 @@ function renderTabel(data, totalPenerimaan, totalPengeluaran, sisaKas) {
     `;
 
     if (data.length === 0) {
-        htmlContent += `<tr><td colspan="7" style="text-align: center; color: #888;">Tidak ada transaksi ditemukan</td></tr>`;
+        htmlContent += `<tr><td colspan="8" style="text-align: center; color: #888;">Tidak ada transaksi ditemukan</td></tr>`;
     } else {
         data.forEach((trx, index) => {
             let kolomPenerimaan = trx.jenis === 'penerimaan' ? trx.jumlah.toLocaleString('id-ID') : '-';
@@ -212,6 +216,7 @@ function renderTabel(data, totalPenerimaan, totalPengeluaran, sisaKas) {
             
             htmlContent += `
                 <tr>
+                    <td><input type="checkbox" class="row-checkbox" data-id="${trx.id}"></td>
                     <td><strong>${index + 1}</strong></td>
                     <td>${trx.tanggal}<br><small style="color:#666;">${trx.noBukti}</small></td>
                     <td>
@@ -223,7 +228,7 @@ function renderTabel(data, totalPenerimaan, totalPengeluaran, sisaKas) {
                     <td class="${trx.jenis === 'pengeluaran' ? 'expense' : ''}">${kolomPengeluaran}</td>
                     <td>${sisaKas.toLocaleString('id-ID')}</td>
                     <td class="action-icons">
-                        <img src="https://img.icons8.com/material-outlined/20/737373/edit.png" onclick="editTransaksi(${trx.id})" title="Edit"/>
+                        <img src="https://img.icons8.com/material-outlined/20/737373/edit.png" onclick="bukaModalEdit(${trx.id})" title="Edit"/>
                         <img src="https://img.icons8.com/material-outlined/20/737373/trash.png" onclick="hapusTransaksi(${trx.id})" title="Hapus"/>
                     </td>
                 </tr>
@@ -233,6 +238,7 @@ function renderTabel(data, totalPenerimaan, totalPengeluaran, sisaKas) {
 
     htmlContent += `
         <tr class="final-row">
+            <td></td>
             <td></td>
             <td><strong>TOTAL</strong></td>
             <td></td>
@@ -247,9 +253,36 @@ function renderTabel(data, totalPenerimaan, totalPengeluaran, sisaKas) {
 }
 
 // ==========================================
-// 4. EVENT LISTENERS & FORM TRANSAKSI BARU
+// 4. MULTIPLE DELETE (HAPUS TERPILIH)
 // ==========================================
+if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', function() {
+        const checkboxes = document.querySelectorAll('.row-checkbox');
+        checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+    });
+}
 
+if (btnHapusTerpilih) {
+    btnHapusTerpilih.addEventListener('click', function() {
+        const selectedCheckboxes = document.querySelectorAll('.row-checkbox:checked');
+        if (selectedCheckboxes.length === 0) {
+            alert("⚠️ Pilih minimal satu transaksi yang ingin dihapus!");
+            return;
+        }
+
+        if (confirm(`Yakin ingin menghapus ${selectedCheckboxes.length} transaksi yang dipilih?`)) {
+            const idsToDelete = Array.from(selectedCheckboxes).map(cb => parseInt(cb.getAttribute('data-id')));
+            daftarTransaksi = daftarTransaksi.filter(trx => !idsToDelete.includes(trx.id));
+            selectAllCheckbox.checked = false;
+            perbaruiAplikasi();
+            alert("Transaksi terpilih berhasil dihapus!");
+        }
+    });
+}
+
+// ==========================================
+// 5. FORM TAMBAH & EDIT TRANSAKSI
+// ==========================================
 if (inputPencarian) {
     inputPencarian.addEventListener('input', function(e) {
         keywordPencarian = e.target.value;
@@ -266,23 +299,43 @@ tombolTabs.forEach(btn => {
     });
 });
 
-// Buka Modal Tambah Transaksi (Otomatis set nomor bukti & tanggal hari ini)
+// Buka Modal Tambah Transaksi Baru
 btnBukaModalTransaksi.addEventListener('click', function() {
+    modalTitle.innerText = "Tambah Transaksi Baru";
+    editIndexId.value = ""; // Kosongkan tanda edit
     const nomorUrutBaru = String(daftarTransaksi.length + 1).padStart(3, '0');
     inputNoBukti.value = `TRX-${nomorUrutBaru}`;
-    inputTanggal.value = getTodayDateString(); // Tanggal otomatis hari ini tanpa diketik
+    inputTanggal.value = getTodayDateString();
+    inputJenis.value = "pengeluaran";
     inputUraian.value = '';
     inputJumlah.value = '';
     inputFile.value = '';
     modalTransaksi.style.display = 'block';
 });
 
+// Buka Modal Edit Transaksi
+window.bukaModalEdit = function(id) {
+    let trx = daftarTransaksi.find(t => t.id === id);
+    if (!trx) return;
+
+    modalTitle.innerText = "Edit Transaksi";
+    editIndexId.value = trx.id; // Simpan ID transaksi yang sedang diedit
+    inputNoBukti.value = trx.noBukti;
+    inputTanggal.value = trx.tanggal;
+    inputJenis.value = trx.jenis;
+    inputUraian.value = trx.uraian;
+    inputJumlah.value = trx.jumlah;
+    inputFile.value = ''; // Reset file input
+    modalTransaksi.style.display = 'block';
+};
+
 btnTutupModalTransaksi.addEventListener('click', function() {
     modalTransaksi.style.display = 'none';
 });
 
-// Simpan Transaksi dari Modal Form
+// Simpan Transaksi (Bisa untuk Tambah Baru atau Edit)
 btnSimpanTransaksi.addEventListener('click', function() {
+    let idEdit = editIndexId.value;
     let tgl = inputTanggal.value;
     let noBuktiVal = inputNoBukti.value;
     let jenisVal = inputJenis.value;
@@ -295,7 +348,6 @@ btnSimpanTransaksi.addEventListener('click', function() {
         return;
     }
 
-    // Validasi ukuran file maks 2MB jika ada file yang diunggah
     let fileNameVal = null;
     if (fileObj) {
         if (fileObj.size > 2 * 1024 * 1024) {
@@ -305,20 +357,115 @@ btnSimpanTransaksi.addEventListener('click', function() {
         fileNameVal = fileObj.name;
     }
 
-    daftarTransaksi.push({
-        id: Date.now(),
-        noBukti: noBuktiVal,
-        tanggal: tgl,
-        uraian: uraianVal,
-        jenis: jenisVal,
-        jumlah: jumlahVal,
-        fileName: fileNameVal
-    });
+    if (idEdit) {
+        // Mode Edit: Update data transaksi yang ada
+        let trx = daftarTransaksi.find(t => t.id == idEdit);
+        if (trx) {
+            trx.tanggal = tgl;
+            trx.jenis = jenisVal;
+            trx.uraian = uraianVal;
+            trx.jumlah = jumlahVal;
+            if (fileNameVal) {
+                trx.fileName = fileNameVal; // Update file jika ada upload baru
+            }
+        }
+        alert("Transaksi berhasil diperbarui!");
+    } else {
+        // Mode Tambah Baru
+        daftarTransaksi.push({
+            id: Date.now(),
+            noBukti: noBuktiVal,
+            tanggal: tgl,
+            uraian: uraianVal,
+            jenis: jenisVal,
+            jumlah: jumlahVal,
+            fileName: fileNameVal
+        });
+        alert("Transaksi berhasil ditambahkan!");
+    }
 
     modalTransaksi.style.display = 'none';
     perbaruiAplikasi();
-    alert("Transaksi berhasil disimpan!");
 });
+
+// Hapus Single Transaksi
+window.hapusTransaksi = function(id) {
+    if (confirm("Yakin ingin menghapus transaksi ini?")) {
+        daftarTransaksi = daftarTransaksi.filter(trx => trx.id !== id);
+        perbaruiAplikasi();
+    }
+};
+
+// ==========================================
+// 6. MESIN AI: DIPISAH 2 (PENGELUARAN & PENERIMAAN)
+// ==========================================
+if (btnKirimAi && inputAiPrompt) {
+    btnKirimAi.addEventListener('click', function() {
+        let teks = inputAiPrompt.value.trim();
+        if (!teks) {
+            aiResponse.innerText = "⚠️ Masukkan kalimat perintah untuk AI terlebih dahulu.";
+            return;
+        }
+        AIProsesTransaksi(teks);
+    });
+}
+
+function AIProsesTransaksi(kalimat) {
+    let teksLower = kalimat.toLowerCase();
+    
+    // PEMISAHAN AI MENJADI 2 KATEGORI UTAMA
+    let jenis = "pengeluaran"; // default
+    const kataPenerimaan = ["terima", "dapat", "masuk", "pendapatan", "sumbangan", "hibah", "bantuan", "setoran", "penerimaan"];
+    
+    for (let kata of kataPenerimaan) {
+        if (teksLower.includes(kata)) {
+            jenis = "penerimaan";
+            break;
+        }
+    }
+
+    let jumlah = 0;
+    if (teksLower.includes('juta') || teksLower.includes('jt')) {
+        let matchJuta = teksLower.match(/(\d+[\.,]?\d*)\s*(juta|jt)/);
+        if (matchJuta) {
+            jumlah = parseFloat(matchJuta[1].replace(',', '.')) * 1000000;
+        }
+    } else if (teksLower.includes('ribu') || teksLower.includes('rb')) {
+        let matchRibu = teksLower.match(/(\d+[\.,]?\d*)\s*(ribu|rb)/);
+        if (matchRibu) {
+            jumlah = parseFloat(matchRibu[1].replace(',', '.')) * 1000;
+        }
+    } else {
+        let matchAngka = teksLower.match(/\d+[\.,]?\d*/g);
+        if (matchAngka) {
+            let angkaList = matchAngka.map(n => parseInt(n.replace(/[\.,]/g, '')));
+            jumlah = Math.max(...angkaList);
+        }
+    }
+
+    if (isNaN(jumlah) || jumlah <= 0) {
+        aiResponse.innerText = "❌ AI gagal mendeteksi nominal angka. Coba tulis nominal dengan jelas (contoh: 50rb atau 1 juta).";
+        return;
+    }
+
+    let uraian = kalimat.charAt(0).toUpperCase() + kalimat.slice(1);
+    let noBuktiVal = `AI-${String(daftarTransaksi.length + 1).padStart(3, '0')}`;
+    let tglHariIni = getTodayDateString();
+
+    daftarTransaksi.push({
+        id: Date.now(),
+        noBukti: noBuktiVal,
+        tanggal: tglHariIni,
+        uraian: uraian,
+        jenis: jenis, // Otomatis terbagi ke 'penerimaan' atau 'pengeluaran'
+        jumlah: jumlah,
+        fileName: null
+    });
+
+    aiResponse.innerText = `✨ Sukses! AI memproses sebagai [${jenis.toUpperCase()}] "${uraian}" sebesar Rp ${jumlah.toLocaleString('id-ID')}`;
+    inputAiPrompt.value = ""; 
+    perbaruiAplikasi();
+}
 
 // Rekonsiliasi Tombol Cepat
 if (btnTambahKas) {
@@ -438,24 +585,6 @@ btnSimpanDrawing.addEventListener('click', function() {
     perbaruiAplikasi();
 });
 
-// Aksi Edit & Hapus Transaksi
-window.hapusTransaksi = function(id) {
-    if (confirm("Yakin ingin menghapus transaksi ini?")) {
-        daftarTransaksi = daftarTransaksi.filter(trx => trx.id !== id);
-        perbaruiAplikasi();
-    }
-};
-
-window.editTransaksi = function(id) {
-    let trx = daftarTransaksi.find(t => t.id === id);
-    if (!trx) return;
-    let nominalBaru = prompt("Ubah nominal transaksi:", trx.jumlah);
-    if (nominalBaru !== null && !isNaN(nominalBaru)) {
-        trx.jumlah = parseInt(nominalBaru);
-        perbaruiAplikasi();
-    }
-};
-
 // Pengaturan Modal Dokumen
 btnPengaturan.addEventListener('click', function() {
     inputProgram.value = konfigurasi.program;
@@ -529,80 +658,3 @@ btnEkspor.addEventListener('click', function() {
 document.addEventListener("DOMContentLoaded", function() {
     perbaruiAplikasi();
 });
-// ==========================================
-// MESIN AI: NATURAL LANGUAGE PROCESSING (NLP)
-// ==========================================
-const inputAiPrompt = document.getElementById('inputAiPrompt');
-const btnKirimAi = document.getElementById('btnKirimAi');
-const aiResponse = document.getElementById('aiResponse');
-
-if (btnKirimAi && inputAiPrompt) {
-    btnKirimAi.addEventListener('click', function() {
-        let teks = inputAiPrompt.value.trim();
-        if (!teks) {
-            aiResponse.innerText = "⚠️ Masukkan kalimat perintah untuk AI terlebih dahulu.";
-            return;
-        }
-        AIProsesTransaksi(teks);
-    });
-}
-
-function AIProsesTransaksi(kalimat) {
-    let teksLower = kalimat.toLowerCase();
-    
-    // 1. Deteksi Jenis Transaksi (Penerimaan / Pengeluaran)
-    let jenis = "pengeluaran"; // default
-    const kataPenerimaan = ["terima", "dapat", "masuk", "pendapatan", "sumbangan", "hibah", "bantuan"];
-    for (let kata of kataPenerimaan) {
-        if (teksLower.includes(kata)) {
-            jenis = "penerimaan";
-            break;
-        }
-    }
-
-    // 2. Ekstraksi Nominal Angka & Satuan (ribu, jt, juta)
-    let jumlah = 0;
-    
-    if (teksLower.includes('juta') || teksLower.includes('jt')) {
-        let matchJuta = teksLower.match(/(\d+[\.,]?\d*)\s*(juta|jt)/);
-        if (matchJuta) {
-            jumlah = parseFloat(matchJuta[1].replace(',', '.')) * 1000000;
-        }
-    } else if (teksLower.includes('ribu') || teksLower.includes('rb')) {
-        let matchRibu = teksLower.match(/(\d+[\.,]?\d*)\s*(ribu|rb)/);
-        if (matchRibu) {
-            jumlah = parseFloat(matchRibu[1].replace(',', '.')) * 1000;
-        }
-    } else {
-        let matchAngka = teksLower.match(/\d+[\.,]?\d*/g);
-        if (matchAngka) {
-            let angkaList = matchAngka.map(n => parseInt(n.replace(/[\.,]/g, '')));
-            jumlah = Math.max(...angkaList);
-        }
-    }
-
-    if (isNaN(jumlah) || jumlah <= 0) {
-        aiResponse.innerText = "❌ AI gagal mendeteksi nominal angka. Coba tulis nominal dengan jelas (contoh: 50rb atau 1 juta).";
-        return;
-    }
-
-    // 3. Bersihkan Uraian & Masukkan ke Data
-    let uraian = kalimat.charAt(0).toUpperCase() + kalimat.slice(1);
-    let noBuktiVal = `AI-${String(daftarTransaksi.length + 1).padStart(3, '0')}`;
-    let tglHariIni = getTodayDateString();
-
-    daftarTransaksi.push({
-        id: Date.now(),
-        noBukti: noBuktiVal,
-        tanggal: tglHariIni,
-        uraian: uraian,
-        jenis: jenis,
-        jumlah: jumlah,
-        fileName: null
-    });
-
-    aiResponse.innerText = `✨ Sukses! AI mencatat [${jenis.toUpperCase()}] "${uraian}" sebesar Rp ${jumlah.toLocaleString('id-ID')}`;
-    inputAiPrompt.value = ""; 
-    
-    perbaruiAplikasi();
-}
