@@ -778,8 +778,6 @@ btnEkspor.addEventListener('click', () => {
     a.click();
 });
 
-document.addEventListener("DOMContentLoaded", () => perbaruiAplikasi());
-
 const btnResetData = document.getElementById('btnResetData');
 
 if (btnResetData) {
@@ -805,3 +803,7 @@ if (btnResetData) {
         }
     });
 }
+    
+document.addEventListener("DOMContentLoaded", function() {
+    perbaruiAplikasi();
+});
