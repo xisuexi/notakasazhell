@@ -113,7 +113,9 @@ const inputNIPKPA = document.getElementById('inputNIPKPA');
 function formatRupiah(angka) {
     return 'Rp ' + angka.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 }
-
+const inputAiPrompt = document.getElementById('inputAiPrompt');
+const btnKirimAi = document.getElementById('btnKirimAi');
+const aiResponse = document.getElementById('aiResponse');
 // ==========================================
 // 3. FUNGSI UTAMA RENDER & KALKULASI
 // ==========================================
@@ -524,3 +526,88 @@ btnEkspor.addEventListener('click', function() {
 document.addEventListener("DOMContentLoaded", function() {
     perbaruiAplikasi();
 });
+
+// ==========================================
+// MESIN AI: NATURAL LANGUAGE PROCESSING (NLP)
+// ==========================================
+if (btnKirimAi && inputAiPrompt) {
+    btnKirimAi.addEventListener('click', function() {
+        let teks = inputAiPrompt.value.trim();
+        if (!teks) {
+            aiResponse.innerText = "⚠️ Masukkan kalimat perintah untuk AI terlebih dahulu.";
+            return;
+        }
+
+        AIProsesTransaksi(teks);
+    });
+}
+
+function AIProsesTransaksi(kalimat) {
+    let teksLower = kalimat.toLowerCase();
+    
+    // 1. Deteksi Jenis Transaksi (Penerimaan / Pengeluaran)
+    let jenis = "pengeluaran"; // default
+    const kataPenerimaan = ["terima", "dapat", "masuk", "pendapatan", "sumbangan", "hibah", "bantuan"];
+    for (let kata of kataPenerimaan) {
+        if (teksLower.includes(kata)) {
+            jenis = "penerimaan";
+            break;
+        }
+    }
+
+    // 2. Ekstraksi Nominal Angka & Satuan (ribu, jt, juta)
+    let jumlah = 0;
+    
+    // Cek jika ada kata 'juta' atau 'jt'
+    if (teksLower.includes('juta') || teksLower.includes('jt')) {
+        let matchJuta = teksLower.match(/(\d+[\.,]?\d*)\s*(juta|jt)/);
+        if (matchJuta) {
+            jumlah = parseFloat(matchJuta[1].replace(',', '.')) * 1000000;
+        }
+    } 
+    // Cek jika ada kata 'ribu' atau 'rb'
+    else if (teksLower.includes('ribu') || teksLower.includes('rb')) {
+        let matchRibu = teksLower.match(/(\d+[\.,]?\d*)\s*(ribu|rb)/);
+        if (matchRibu) {
+            jumlah = parseFloat(matchRibu[1].replace(',', '.')) * 1000;
+        }
+    } 
+    // Cek angka biasa (misal: 50000 atau 50.000)
+    else {
+        let matchAngka = teksLower.match(/\d+[\.,]?\d*/g);
+        if (matchAngka) {
+            // Ambil angka terbesar yang ditemukan di kalimat sebagai nominal
+            let angkaList = matchAngka.map(n => parseInt(n.replace(/[\.,]/g, '')));
+            jumlah = Math.max(...angkaList);
+        }
+    }
+
+    if (isNaN(jumlah) || jumlah <= 0) {
+        aiResponse.innerText = "❌ AI gagal mendeteksi nominal angka. Coba tulis nominal dengan jelas (contoh: 50rb atau 1 juta).";
+        return;
+    }
+
+    // 3. Bersihkan Uraian (ambil seluruh kalimat sebagai uraian)
+    let uraian = kalimat.charAt(0).toUpperCase() + kalimat.slice(1);
+    let noBuktiVal = `AI-${String(daftarTransaksi.length + 1).padStart(3, '0')}`;
+    let tglHariIni = getTodayDateString();
+
+    // 4. Masukkan ke Daftar Transaksi secara otomatis
+    daftarTransaksi.push({
+        id: Date.now(),
+        noBukti: noBuktiVal,
+        tanggal: tglHariIni,
+        uraian: uraian,
+        jenis: jenis,
+        jumlah: jumlah,
+        fileName: null
+    });
+
+    // 5. Berikan respon sukses dari AI
+    aiResponse.innerText = `✨ Sukses! AI mencatat [${jenis.toUpperCase()}] "${uraian}" sebesar Rp ${jumlah.toLocaleString('id-ID')}`;
+    inputAiPrompt.value = ""; // Bersihkan input
+    
+    // Perbarui tampilan tabel dan total kas
+    perbaruiAplikasi();
+}
+
