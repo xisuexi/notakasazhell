@@ -12,7 +12,30 @@
         <div class="header">
             <div class="title-section">
                 <h1>Buku Kas Umum</h1>
-                <p>Bendahara Pengeluaran Pembantu - Periode November 2026</p>
+                <!-- Filter Bulan & Tahun Terpisah -->
+                <div class="filter-periode" style="margin-top: 5px; display: flex; gap: 10px; align-items: center;">
+                    <span style="font-size: 14px; color: #666;">Periode:</span>
+                    <select id="filterBulan" class="select-periode">
+                        <option value="01">Januari</option>
+                        <option value="02">Februari</option>
+                        <option value="03">Maret</option>
+                        <option value="04">April</option>
+                        <option value="05">Mei</option>
+                        <option value="06">Juni</option>
+                        <option value="07">Juli</option>
+                        <option value="08">Agustus</option>
+                        <option value="09">September</option>
+                        <option value="10">Oktober</option>
+                        <option value="11" selected>November</option>
+                        <option value="12">Desember</option>
+                    </select>
+                    <select id="filterTahun" class="select-periode">
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026" selected>2026</option>
+                        <option value="2027">2027</option>
+                    </select>
+                </div>
             </div>
             <div class="action-buttons">
                 <button id="btnCetak"><img src="https://img.icons8.com/material-outlined/24/000000/print.png"/> Cetak</button>
@@ -62,17 +85,33 @@
         <!-- Transactions Section -->
         <div class="transactions-section">
             <h3>Daftar Transaksi</h3>
-            <p id="infoJumlahTransaksi">1 dari 1 transaksi</p>
-            <div class="search-bar" style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-                <input type="text" placeholder="Cari uraian, nama, no. dokumen..." style="margin-bottom: 0; flex: 1;">
-                <button id="btnHapusTerpilih" style="background-color: #c62828; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 13px;">🗑️ Hapus Terpilih</button>
+            
+            <!-- Kontrol View List & Pencarian -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; gap: 10px; flex-wrap: wrap;">
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <label style="font-size: 13px; color: #666;">Tampilkan:</label>
+                    <select id="selectLimit" class="select-periode" style="padding: 6px;">
+                        <option value="5">5</option>
+                        <option value="10" selected>10</option>
+                        <option value="20">20</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                    <span style="font-size: 13px; color: #666;">data</span>
+                </div>
+                <div style="display: flex; gap: 10px; flex: 1; justify-content: flex-end;">
+                    <input type="text" class="search-bar-input" placeholder="Cari uraian, nama, no. dokumen..." style="padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 250px;">
+                    <button id="btnHapusTerpilih" style="background-color: #c62828; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">🗑️ Hapus Terpilih</button>
+                </div>
             </div>
-            <div class="tabs" style="margin-top: 15px;">
+
+            <div class="tabs">
                 <button class="active">Semua</button>
                 <button>Penerimaan</button>
                 <button>Pengeluaran</button>
             </div>
             <button class="add-transaction" id="btnBukaModalTransaksi">+ Transaksi</button>
+            
             <table>
                 <thead>
                     <tr>
@@ -90,6 +129,16 @@
                     <!-- Data dirender otomatis oleh JavaScript -->
                 </tbody>
             </table>
+
+            <!-- Navigasi Pagination (Next Page) -->
+            <div class="pagination-container" style="display: flex; justify-content: space-between; align-items: center; margin-top: 15px; font-size: 13px; color: #666;">
+                <span id="infoPagination">Menampilkan 0 dari 0 data</span>
+                <div style="display: flex; gap: 5px;">
+                    <button id="btnPrevPage" class="btn-mini" style="padding: 6px 12px;">‹ Sebelumnya</button>
+                    <span id="pageIndicator" style="padding: 6px 10px; font-weight: bold;">1 / 1</span>
+                    <button id="btnNextPage" class="btn-mini" style="padding: 6px 12px;">Berikutnya ›</button>
+                </div>
+            </div>
         </div>
 
         <!-- Reconciliation Section -->
@@ -139,7 +188,7 @@
             <h2 id="modalTitle">Tambah Transaksi Baru</h2>
             <hr style="margin-bottom: 15px; border: 0; border-top: 1px solid #ccc;">
             
-            <input type="hidden" id="editIndexId"> <!-- Menyimpan ID jika sedang mode edit -->
+            <input type="hidden" id="editIndexId">
 
             <label>No. Bukti / Nomor:</label>
             <input type="text" id="inputNoBukti" class="modal-input" readonly style="background-color: #e9ecef;">
