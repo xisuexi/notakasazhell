@@ -1,4 +1,3 @@
-
 // ==========================================
 // 1. DATA AWAL & LOCAL STORAGE
 // ==========================================
@@ -17,7 +16,7 @@ let konfigurasi = JSON.parse(localStorage.getItem('bku_konfigurasi')) || {
 };
 
 let daftarTransaksi = JSON.parse(localStorage.getItem('bku_transaksi')) || [
-    { id: 1, tanggal: "2026-10-01", uraian: "Pengadaan Rapat Koordinasi SKPD", jenis: "pengeluaran", jumlah: 400000, fileNama: "-" }
+    { id: 1, noBukti: "TRX-001", tanggal: "2021-10-01", uraian: "Pengadaan Rapat Koordinasi SKPD", jenis: "pengeluaran", jumlah: 400000, fileName: null }
 ];
 
 let filterAktif = "Semua";
@@ -28,16 +27,20 @@ function simpanData() {
     localStorage.setItem('bku_transaksi', JSON.stringify(daftarTransaksi));
 }
 
-function getTanggalHariIni() {
+function getTanggalHariIniFormat() {
     const options = { year: 'numeric', month: 'long', day: 'numeric' };
     return new Date().toLocaleDateString('id-ID', options);
 }
 
-// Format tanggal ke yyyy-mm-dd untuk input date
-function getFormatTanggalInput(date = new Date()) {
-    const offset = date.getTimezoneOffset();
-    const adjustedDate = new Date(date.getTime() - (offset*60*1000));
-    return adjustedDate.toISOString().split('T')[0];
+// Mendapatkan format YYYY-MM-DD untuk input date HTML
+function getTodayDateString() {
+    const today = new Date();
+    const yyyy = today.getFullYear();
+    let mm = today.getMonth() + 1;
+    let dd = today.getDate();
+    if (mm < 10) mm = '0' + mm;
+    if (dd < 10) dd = '0' + dd;
+    return `${yyyy}-${mm}-${dd}`;
 }
 
 // ==========================================
@@ -77,24 +80,22 @@ const btnSaldoBank = document.getElementById('btnSaldoBank');
 const btnPajak = document.getElementById('btnPajak');
 const btnBukaDrawing = document.getElementById('btnBukaDrawing');
 
-// Modal Form Transaksi Baru
-const modalTambahTrx = document.getElementById('modalTambahTrx');
-const btnBukaFormTrx = document.getElementById('btnBukaFormTrx');
-const btnTutupFormTrx = document.getElementById('btnTutupFormTrx');
-const btnSimpanTransaksiBaru = document.getElementById('btnSimpanTransaksiBaru');
-
-const inputNoTrx = document.getElementById('inputNoTrx');
-const inputTanggalTrx = document.getElementById('inputTanggalTrx');
-const inputJenisTrx = document.getElementById('inputJenisTrx');
-const inputUraianTrx = document.getElementById('inputUraianTrx');
-const inputJumlahTrx = document.getElementById('inputJumlahTrx');
-const inputFileTrx = document.getElementById('inputFileTrx');
+// Modal Transaksi
+const modalTransaksi = document.getElementById('modalTransaksi');
+const btnBukaModalTransaksi = document.getElementById('btnBukaModalTransaksi');
+const btnTutupModalTransaksi = document.getElementById('btnTutupModalTransaksi');
+const btnSimpanTransaksi = document.getElementById('btnSimpanTransaksi');
+const inputNoBukti = document.getElementById('inputNoBukti');
+const inputTanggal = document.getElementById('inputTanggal');
+const inputJenis = document.getElementById('inputJenis');
+const inputUraian = document.getElementById('inputUraian');
+const inputJumlah = document.getElementById('inputJumlah');
+const inputFile = document.getElementById('inputFile');
 
 // Modal Pengaturan & Drawing
 const modalPengaturan = document.getElementById('modalPengaturan');
 const btnTutupModal = document.getElementById('btnTutupModal');
 const btnSimpanPengaturan = document.getElementById('btnSimpanPengaturan');
-
 const modalDrawing = document.getElementById('modalDrawing');
 const btnTutupDrawing = document.getElementById('btnTutupDrawing');
 const btnSimpanDrawing = document.getElementById('btnSimpanDrawing');
@@ -135,7 +136,7 @@ function perbaruiAplikasi() {
     elViewSubKegiatan.innerText = konfigurasi.subKegiatan;
     elViewNamaKPA.innerText = konfigurasi.namaKPA;
     elViewNIPKPA.innerText = konfigurasi.nipKPA;
-    elTanggalCetakFooter.innerText = getTanggalHariIni();
+    elTanggalCetakFooter.innerText = getTanggalHariIniFormat();
 
     if (konfigurasi.tandaTanganUrl) {
         imgTandaTangan.src = konfigurasi.tandaTanganUrl;
@@ -172,7 +173,8 @@ function perbaruiAplikasi() {
         if (filterAktif === 'Pengeluaran') matchTab = trx.jenis === 'pengeluaran';
 
         let matchSearch = trx.uraian.toLowerCase().includes(keywordPencarian.toLowerCase()) || 
-                          trx.tanggal.includes(keywordPencarian);
+                          trx.tanggal.includes(keywordPencarian) ||
+                          trx.noBukti.toLowerCase().includes(keywordPencarian.toLowerCase());
         return matchTab && matchSearch;
     });
 
@@ -191,32 +193,32 @@ function renderTabel(data, totalPenerimaan, totalPengeluaran, sisaKas) {
             <td>-</td>
             <td>-</td>
             <td>${konfigurasi.saldoAwal.toLocaleString('id-ID')}</td>
-            <td>-</td>
             <td></td>
         </tr>
     `;
 
     if (data.length === 0) {
-        htmlContent += `<tr><td colspan="8" style="text-align: center; color: #888;">Tidak ada transaksi ditemukan</td></tr>`;
+        htmlContent += `<tr><td colspan="7" style="text-align: center; color: #888;">Tidak ada transaksi ditemukan</td></tr>`;
     } else {
         data.forEach((trx, index) => {
             let kolomPenerimaan = trx.jenis === 'penerimaan' ? trx.jumlah.toLocaleString('id-ID') : '-';
             let kolomPengeluaran = trx.jenis === 'pengeluaran' ? trx.jumlah.toLocaleString('id-ID') : '-';
-            let infoFile = trx.fileNama && trx.fileNama !== '-' ? `<a href="#" title="${trx.fileNama}">📄 Ada</a>` : '-';
+            let infoFile = trx.fileName ? `<br><small style="color: #00796b;">📎 ${trx.fileName}</small>` : '';
             
             htmlContent += `
                 <tr>
                     <td><strong>${index + 1}</strong></td>
-                    <td>${trx.tanggal}</td>
+                    <td>${trx.tanggal}<br><small style="color:#666;">${trx.noBukti}</small></td>
                     <td>
                         <div class="teks-uraian">${trx.uraian}</div>
                         <div class="sub-teks-uraian">Kategori: ${trx.jenis.toUpperCase()}</div>
+                        ${infoFile}
                     </td>
                     <td>${kolomPenerimaan}</td>
                     <td class="${trx.jenis === 'pengeluaran' ? 'expense' : ''}">${kolomPengeluaran}</td>
                     <td>${sisaKas.toLocaleString('id-ID')}</td>
-                    <td>${infoFile}</td>
                     <td class="action-icons">
+                        <img src="https://img.icons8.com/material-outlined/20/737373/edit.png" onclick="editTransaksi(${trx.id})" title="Edit"/>
                         <img src="https://img.icons8.com/material-outlined/20/737373/trash.png" onclick="hapusTransaksi(${trx.id})" title="Hapus"/>
                     </td>
                 </tr>
@@ -233,7 +235,6 @@ function renderTabel(data, totalPenerimaan, totalPengeluaran, sisaKas) {
             <td><strong>${totalPengeluaran.toLocaleString('id-ID')}</strong></td>
             <td><strong>${sisaKas.toLocaleString('id-ID')}</strong></td>
             <td></td>
-            <td></td>
         </tr>
     `;
 
@@ -241,7 +242,7 @@ function renderTabel(data, totalPenerimaan, totalPengeluaran, sisaKas) {
 }
 
 // ==========================================
-// 4. EVENT LISTENERS & FORM MODAL TRANSAKSI
+// 4. EVENT LISTENERS & FORM TRANSAKSI BARU
 // ==========================================
 
 if (inputPencarian) {
@@ -260,58 +261,61 @@ tombolTabs.forEach(btn => {
     });
 });
 
-// Buka Modal Form Transaksi (Otomatis atur nomor & tanggal hari ini)
-btnBukaFormTrx.addEventListener('click', function() {
-    inputNoTrx.value = daftarTransaksi.length + 1;
-    inputTanggalTrx.value = getFormatTanggalInput(); // Menampilkan tanggal hari ini tanpa diketik
-    inputUraianTrx.value = '';
-    inputJumlahTrx.value = '';
-    inputFileTrx.value = '';
-    modalTambahTrx.style.display = 'block';
+// Buka Modal Tambah Transaksi (Otomatis set nomor bukti & tanggal hari ini)
+btnBukaModalTransaksi.addEventListener('click', function() {
+    const nomorUrutBaru = String(daftarTransaksi.length + 1).padStart(3, '0');
+    inputNoBukti.value = `TRX-${nomorUrutBaru}`;
+    inputTanggal.value = getTodayDateString(); // Tanggal otomatis hari ini tanpa diketik
+    inputUraian.value = '';
+    inputJumlah.value = '';
+    inputFile.value = '';
+    modalTransaksi.style.display = 'block';
 });
 
-btnTutupFormTrx.addEventListener('click', function() {
-    modalTambahTrx.style.display = 'none';
+btnTutupModalTransaksi.addEventListener('click', function() {
+    modalTransaksi.style.display = 'none';
 });
 
-// Simpan Transaksi Baru dari Form Modal + Validasi Ukuran File Max 2MB
-btnSimpanTransaksiBaru.addEventListener('click', function() {
-    let tgl = inputTanggalTrx.value;
-    let jenis = inputJenisTrx.value;
-    let uraian = inputUraianTrx.value;
-    let jumlah = parseInt(inputJumlahTrx.value);
-    let fileObj = inputFileTrx.files[0];
+// Simpan Transaksi dari Modal Form
+btnSimpanTransaksi.addEventListener('click', function() {
+    let tgl = inputTanggal.value;
+    let noBuktiVal = inputNoBukti.value;
+    let jenisVal = inputJenis.value;
+    let uraianVal = inputUraian.value.trim();
+    let jumlahVal = parseInt(inputJumlah.value);
+    let fileObj = inputFile.files[0];
 
-    if (!tgl || !uraian || isNaN(jumlah) || jumlah <= 0) {
-        alert("Harap isi tanggal, uraian, dan nominal transaksi dengan benar!");
+    if (!tgl || !uraianVal || isNaN(jumlahVal) || jumlahVal <= 0) {
+        alert("Mohon isi tanggal, uraian, dan nominal dengan benar!");
         return;
     }
 
-    let namaFile = "-";
+    // Validasi ukuran file maks 2MB jika ada file yang diunggah
+    let fileNameVal = null;
     if (fileObj) {
-        // Validasi ukuran maksimal 2MB (2 * 1024 * 1024 bytes)
         if (fileObj.size > 2 * 1024 * 1024) {
             alert("Ukuran file terlalu besar! Maksimal ukuran file adalah 2MB.");
             return;
         }
-        namaFile = fileObj.name;
+        fileNameVal = fileObj.name;
     }
 
     daftarTransaksi.push({
         id: Date.now(),
+        noBukti: noBuktiVal,
         tanggal: tgl,
-        uraian: uraian,
-        jenis: jenis,
-        jumlah: jumlah,
-        fileNama: namaFile
+        uraian: uraianVal,
+        jenis: jenisVal,
+        jumlah: jumlahVal,
+        fileName: fileNameVal
     });
 
-    modalTambahTrx.style.display = 'none';
+    modalTransaksi.style.display = 'none';
     perbaruiAplikasi();
-    alert("Transaksi berhasil ditambahkan!");
+    alert("Transaksi berhasil disimpan!");
 });
 
-// Tombol Rekonsiliasi Cepat
+// Rekonsiliasi Tombol Cepat
 if (btnTambahKas) {
     btnTambahKas.addEventListener('click', function() {
         let nilaiBaru = prompt("Masukkan jumlah Kas Tunai fisik (Angka saja):", konfigurasi.kasTunai);
@@ -342,7 +346,7 @@ if (btnPajak) {
     });
 }
 
-// Canvas Drawing Tanda Tangan
+// Logika Canvas Drawing Tanda Tangan
 let isDrawing = false;
 let lastX = 0;
 let lastY = 0;
@@ -429,7 +433,7 @@ btnSimpanDrawing.addEventListener('click', function() {
     perbaruiAplikasi();
 });
 
-// Hapus Transaksi
+// Aksi Edit & Hapus Transaksi
 window.hapusTransaksi = function(id) {
     if (confirm("Yakin ingin menghapus transaksi ini?")) {
         daftarTransaksi = daftarTransaksi.filter(trx => trx.id !== id);
@@ -437,7 +441,86 @@ window.hapusTransaksi = function(id) {
     }
 };
 
+window.editTransaksi = function(id) {
+    let trx = daftarTransaksi.find(t => t.id === id);
+    if (!trx) return;
+    let nominalBaru = prompt("Ubah nominal transaksi:", trx.jumlah);
+    if (nominalBaru !== null && !isNaN(nominalBaru)) {
+        trx.jumlah = parseInt(nominalBaru);
+        perbaruiAplikasi();
+    }
+};
+
 // Pengaturan Modal Dokumen
 btnPengaturan.addEventListener('click', function() {
     inputProgram.value = konfigurasi.program;
-    inputKegiatan.value =
+    inputKegiatan.value = konfigurasi.kegiatan;
+    inputSubKegiatan.value = konfigurasi.subKegiatan;
+    inputSaldoAwal.value = konfigurasi.saldoAwal;
+    inputNamaKPA.value = konfigurasi.namaKPA;
+    inputNIPKPA.value = konfigurasi.nipKPA;
+    modalPengaturan.style.display = 'block';
+});
+
+btnTutupModal.addEventListener('click', function() {
+    modalDrawing.style.display = 'none';
+    modalPengaturan.style.display = 'none';
+});
+
+btnSimpanPengaturan.addEventListener('click', function() {
+    konfigurasi.program = inputProgram.value;
+    konfigurasi.kegiatan = inputKegiatan.value;
+    konfigurasi.subKegiatan = inputSubKegiatan.value;
+    konfigurasi.saldoAwal = parseInt(inputSaldoAwal.value) || 0;
+    konfigurasi.namaKPA = inputNamaKPA.value;
+    konfigurasi.nipKPA = inputNIPKPA.value;
+
+    modalPengaturan.style.display = 'none';
+    perbaruiAplikasi();
+    alert("Pengaturan berhasil disimpan!");
+});
+
+// Cetak & Ekspor File
+btnCetak.addEventListener('click', function() {
+    window.print();
+});
+
+btnEkspor.addEventListener('click', function() {
+    let ttdHtml = konfigurasi.tandaTanganUrl ? `<img src="${konfigurasi.tandaTanganUrl}" height="60"/>` : `<br/><br/>`;
+    
+    let htmlContent = `
+        <html>
+        <head><meta charset="utf-8"></head>
+        <body>
+            <h3>Buku Kas Umum</h3>
+            <p><strong>Tanggal Ekspor:</strong> ${getTanggalHariIniFormat()}</p>
+            <p><strong>Program:</strong> ${konfigurasi.program}</p>
+            <p><strong>Kegiatan:</strong> ${konfigurasi.kegiatan}</p>
+            <p><strong>Sub Kegiatan:</strong> ${konfigurasi.subKegiatan}</p>
+            <br/>
+            <table border="1">
+                ${document.querySelector('table').innerHTML}
+            </table>
+            <br/><br/>
+            <p>Mengetahui,</p>
+            <p>Kuasa Pengguna Anggaran</p>
+            <div>${ttdHtml}</div>
+            <p><b>${konfigurasi.namaKPA}</b></p>
+            <p>NIP. ${konfigurasi.nipKPA}</p>
+        </body>
+        </html>
+    `;
+
+    let blob = new Blob(['\ufeff' + htmlContent], { type: 'application/vnd.ms-excel' });
+    let url = URL.createObjectURL(blob);
+    let a = document.createElement('a');
+    a.href = url;
+    a.download = `Buku_Kas_Umum_${new Date().toISOString().slice(0,10)}.xls`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+});
+
+document.addEventListener("DOMContentLoaded", function() {
+    perbaruiAplikasi();
+});
