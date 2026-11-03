@@ -620,7 +620,6 @@ if (btnTambahKas) btnTambahKas.addEventListener('click', () => { let v = prompt(
 if (btnSaldoBank) btnSaldoBank.addEventListener('click', () => { let v = prompt("Saldo Bank:", konfigurasi.saldoBank); if(v!==null){konfigurasi.saldoBank=parseInt(v)||0; perbaruiAplikasi();} });
 if (btnPajak) btnPajak.addEventListener('click', () => { let v = prompt("Pajak Belum Disetor:", konfigurasi.pajakBelumDisetor); if(v!==null){konfigurasi.pajakBelumDisetor=parseInt(v)||0; perbaruiAplikasi();} });
 
-});
 // ==========================================
 // LOGIKA CANVAS DRAWING TANDA TANGAN (MOUSE & TOUCH)
 // ==========================================
