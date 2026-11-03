@@ -580,6 +580,8 @@ btnEkspor.addEventListener('click', () => {
     a.download = `BKU_${filterBulan.value}_${filterTahun.value}.xls`;
     a.click();
 });
+document.addEventListener("DOMContentLoaded", () => perbaruiAplikasi());
+
 const btnResetData = document.getElementById('btnResetData');
 
 if (btnResetData) {
@@ -607,4 +609,4 @@ if (btnResetData) {
 }
 
 
-document.addEventListener("DOMContentLoaded", () => perbaruiAplikasi());
+
