@@ -27,17 +27,17 @@
             <p><strong>KEGIATAN</strong> <span id="viewKegiatan">1.03.01.1.06 Administrasi Umum Perangkat Daerah</span></p>
             <p><strong>SUB KEGIATAN</strong> <span id="viewSubKegiatan">1.03.01.1.06.0009 Penyelenggaraan Rapat Koordinasi dan Konsultasi SKPD</span></p>
         </div>
-<!-- AI Assistant Section -->
-<div class="ai-card" style="background: linear-gradient(135deg, #00796b, #004d40); color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-    <h3 style="margin-top:0; color: #ffeb3b;">🤖 Asisten AI Buku Kas Umum</h3>
-    <p style="font-size: 13px; margin-bottom: 10px;">Ketik perintah dengan bahasa sehari-hari (contoh: <em>"Beli materai 20 ribu"</em> atau <em>"Terima dana bantuan 5 juta"</em>):</p>
-    <div style="display: flex; gap: 10px;">
-        <input type="text" id="inputAiPrompt" placeholder="Ketik kalimat transaksi di sini..." style="flex: 1; padding: 8px; border-radius: 4px; border: none; outline: none;">
-        <button id="btnKirimAi" style="background: #ffeb3b; color: #333; border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer;">Proses AI</button>
-    </div>
-    <p id="aiResponse" style="font-size: 12px; margin-top: 8px; font-style: italic; color: #e0f2f1;"></p>
-</div>
-        
+
+        <!-- AI Assistant Section -->
+        <div class="ai-card" style="background: linear-gradient(135deg, #00796b, #004d40); color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+            <h3 style="margin-top:0; color: #ffeb3b;">🤖 Asisten AI Buku Kas Umum</h3>
+            <p style="font-size: 13px; margin-bottom: 10px;">Ketik perintah transaksi (AI otomatis memilah Pengeluaran atau Penerimaan):</p>
+            <div style="display: flex; gap: 10px;">
+                <input type="text" id="inputAiPrompt" placeholder="Contoh: Beli materai 20rb ATAU Terima dana bos 5 juta..." style="flex: 1; padding: 8px; border-radius: 4px; border: none; outline: none;">
+                <button id="btnKirimAi" style="background: #ffeb3b; color: #333; border: none; padding: 8px 15px; border-radius: 4px; font-weight: bold; cursor: pointer;">Proses AI</button>
+            </div>
+            <p id="aiResponse" style="font-size: 12px; margin-top: 8px; font-style: italic; color: #e0f2f1;"></p>
+        </div>
 
         <!-- Summary Cards -->
         <div class="summary-cards">
@@ -58,14 +58,16 @@
                 <h2>Rp 499.600.000</h2>
             </div>
         </div>
+
         <!-- Transactions Section -->
         <div class="transactions-section">
             <h3>Daftar Transaksi</h3>
             <p id="infoJumlahTransaksi">1 dari 1 transaksi</p>
-            <div class="search-bar">
-                <input type="text" placeholder="Cari uraian, nama, no. dokumen...">
+            <div class="search-bar" style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+                <input type="text" placeholder="Cari uraian, nama, no. dokumen..." style="margin-bottom: 0; flex: 1;">
+                <button id="btnHapusTerpilih" style="background-color: #c62828; color: white; border: none; padding: 10px 15px; border-radius: 4px; cursor: pointer; font-size: 13px;">🗑️ Hapus Terpilih</button>
             </div>
-            <div class="tabs">
+            <div class="tabs" style="margin-top: 15px;">
                 <button class="active">Semua</button>
                 <button>Penerimaan</button>
                 <button>Pengeluaran</button>
@@ -74,6 +76,7 @@
             <table>
                 <thead>
                     <tr>
+                        <th style="width: 30px;"><input type="checkbox" id="selectAll"></th>
                         <th>NO</th>
                         <th>TANGGAL</th>
                         <th>URAIAN</th>
@@ -130,13 +133,15 @@
         </div>
     </div>
 
-    <!-- MODAL TAMBAH TRANSAKSI -->
+    <!-- MODAL TAMBAH / EDIT TRANSAKSI -->
     <div id="modalTransaksi" class="modal">
         <div class="modal-content">
-            <h2>Tambah Transaksi Baru</h2>
+            <h2 id="modalTitle">Tambah Transaksi Baru</h2>
             <hr style="margin-bottom: 15px; border: 0; border-top: 1px solid #ccc;">
             
-            <label>No. Bukti / Nomor Otomatis:</label>
+            <input type="hidden" id="editIndexId"> <!-- Menyimpan ID jika sedang mode edit -->
+
+            <label>No. Bukti / Nomor:</label>
             <input type="text" id="inputNoBukti" class="modal-input" readonly style="background-color: #e9ecef;">
 
             <label>Tanggal Transaksi:</label>
