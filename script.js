@@ -204,10 +204,9 @@ function perbaruiAplikasi() {
         return matchPeriode && matchTab && matchSearch;
     });
 
-    renderTabel{(transaksiTampil, totalPenerimaan, totalPengeluaran, sisaKas);
-    buatQRCode(); // Panggil pembuatan QR Code otomatis di sini
+    renderTabel(transaksiTampil, totalPenerimaan, totalPengeluaran, sisaKas);
     simpanData();
-    }
+}
 
 function renderTabel(data, totalPenerimaan, totalPengeluaran, sisaKas) {
     tabelBody.innerHTML = '';
@@ -479,151 +478,52 @@ if (btnKirimAi && inputAiPrompt) {
         AIProsesTransaksi(teks);
     });
 }
-// ==========================================
-// MESIN AI: PEMISAH URAIAN, HARGA, TANGGAL & KATEGORI
-// ==========================================
-if (btnKirimAi && inputAiPrompt) {
-    btnKirimAi.addEventListener('click', function() {
-        let teks = inputAiPrompt.value.trim();
-        if (!teks) {
-            aiResponse.innerText = "⚠️ Masukkan kalimat perintah AI terlebih dahulu.";
-            return;
-        }
-        AIProsesTransaksi(teks);
-    });
-}
 
 function AIProsesTransaksi(kalimat) {
-    let teksAsli = kalimat.trim();
-    let teksLower = teksAsli.toLowerCase();
-
-    // 1. Validasi Kategori (Pengeluaran / Penerimaan)
-    let jenis = "pengeluaran"; // default
+    let teksLower = kalimat.toLowerCase();
+    let jenis = "pengeluaran";
     const kataPenerimaan = ["terima", "dapat", "masuk", "pendapatan", "sumbangan", "hibah", "bantuan", "setoran"];
     for (let kata of kataPenerimaan) {
-        if (teksLower.includes(kata)) {
-            jenis = "penerimaan";
-            break;
-        }
+        if (teksLower.includes(kata)) { jenis = "penerimaan"; break; }
     }
 
-    // 2. Ekstraksi Tanggal (Contoh: "02 november 2026", "2 nov", atau format angka "02/11/2026")
-    let tanggalTransaksi = getTodayDateString(); // Default tanggal hari ini
-    let matchedDateStr = ""; // Menyimpan string tanggal asli untuk dihapus dari uraian
-
-    const bulanMap = {
-        "januari": "01", "jan": "01", "februari": "02", "feb": "02",
-        "maret": "03", "mar": "03", "april": "04", "apr": "04",
-        "mei": "05", "may": "05", "juni": "06", "jun": "06",
-        "juli": "07", "jul": "07", "agustus": "08", "agu": "08", "aug": "08",
-        "september": "09", "sep": "09", "oktober": "10", "okt": "10", "oct": "10",
-        "november": "11", "nov": "11", "desember": "12", "des": "12", "dec": "12"
-    };
-
-    // Pola A: Format kata (misal: "02 november 2026" atau "2 nov")
-    let regexTglKata = /(?:tanggal|tgl)?\s*(\d{1,2})\s+([a-z]+)(?:\s+(\d{4}))?/i;
-    let matchKata = teksLower.match(regexTglKata);
-
-    if (matchKata) {
-        matchedDateStr = matchKata[0];
-        let hari = matchKata[1].padStart(2, '0');
-        let bulanStr = matchKata[2];
-        let tahun = matchKata[3] || new Date().getFullYear();
-        if (bulanMap[bulanStr]) {
-            let bulan = bulanMap[bulanStr];
-            tanggalTransaksi = `${tahun}-${bulan}-${hari}`;
-        }
-    } else {
-        // Pola B: Format angka (misal: "02/11/2026" atau "2-11-26")
-        let regexTglAngka = /(?:tanggal|tgl)?\s*(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/i;
-        let matchAngkaTgl = teksLower.match(regexTglAngka);
-        if (matchAngkaTgl) {
-            matchedDateStr = matchAngkaTgl[0];
-            let hari = matchAngkaTgl[1].padStart(2, '0');
-            let bulan = matchAngkaTgl[2].padStart(2, '0');
-            let tahun = matchAngkaTgl[3];
-            if (tahun.length === 2) tahun = "20" + tahun;
-            tanggalTransaksi = `${tahun}-${bulan}-${hari}`;
-        }
-    }
-
-    // 3. Ekstraksi Nominal Harga (ribu, rb, juta, jt, atau angka biasa)
     let jumlah = 0;
-    let matchedNominalStr = "";
-
-    let matchJuta = teksLower.match(/(\d+[\.,]?\d*)\s*(juta|jt)/);
-    let matchRibu = teksLower.match(/(\d+[\.,]?\d*)\s*(ribu|rb)/);
-
-    if (matchJuta) {
-        matchedNominalStr = matchJuta[0];
-        jumlah = parseFloat(matchJuta[1].replace(',', '.')) * 1000000;
-    } else if (matchRibu) {
-        matchedNominalStr = matchRibu[0];
-        jumlah = parseFloat(matchRibu[1].replace(',', '.')) * 1000;
+    if (teksLower.includes('juta') || teksLower.includes('jt')) {
+        let match = teksLower.match(/(\d+[\.,]?\d*)\s*(juta|jt)/);
+        if (match) jumlah = parseFloat(match[1].replace(',', '.')) * 1000000;
+    } else if (teksLower.includes('ribu') || teksLower.includes('rb')) {
+        let match = teksLower.match(/(\d+[\.,]?\d*)\s*(ribu|rb)/);
+        if (match) jumlah = parseFloat(match[1].replace(',', '.')) * 1000;
     } else {
-        let matchAngka = teksAsli.match(/\d+[\.,]?\d*/g);
+        let matchAngka = teksLower.match(/\d+[\.,]?\d*/g);
         if (matchAngka) {
-            // Filter agar tidak keliru mengambil tahun (misal 2026) sebagai nominal harga
-            let currentYearStr = String(filterTahun ? filterTahun.value : new Date().getFullYear());
-            let filtered = matchAngka.map(n => ({ original: n, val: parseFloat(n.replace(/\./g, '').replace(',', '.')) }))
-                                     .filter(item => item.original !== currentYearStr && item.val > 0);
-            
-            if (filtered.length > 0) {
-                jumlah = filtered[filtered.length - 1].val;
-                matchedNominalStr = filtered[filtered.length - 1].original;
-            } else {
-                jumlah = parseFloat(matchAngka[0].replace(/\./g, '').replace(',', '.'));
-                matchedNominalStr = matchAngka[0];
-            }
+            let angkaList = matchAngka.map(n => parseInt(n.replace(/[\.,]/g, '')));
+            jumlah = Math.max(...angkaList);
         }
     }
 
     if (isNaN(jumlah) || jumlah <= 0) {
-        aiResponse.innerText = "❌ AI gagal mendeteksi nominal harga. Contoh format: 'Beli roko 25rb'.";
+        aiResponse.innerText = "❌ AI gagal mendeteksi nominal angka.";
         return;
     }
 
-    // 4. Pembersihan Uraian (Membuang teks tanggal, nominal, dan kata sambung agar bersih)
-    let uraianBersih = teksAsli;
-    if (matchedDateStr) {
-        uraianBersih = uraianBersih.replace(new RegExp(matchedDateStr, 'gi'), '');
-    }
-    if (matchedNominalStr) {
-        uraianBersih = uraianBersih.replace(new RegExp(matchedNominalStr + '\\s*(ribu|rb|juta|jt)?', 'gi'), '');
-    }
-    
-    // Hapus kata-kata sisa yang tidak diperlukan dalam uraian
-    uraianBersih = uraianBersih
-        .replace(/\b(tanggal|tgl|pada|sebesar|harga|senilai|rp|idr)\b/gi, '')
-        .replace(/\s+/g, ' ')
-        .trim();
-
-    uraianBersih = uraianBersih.charAt(0).toUpperCase() + uraianBersih.slice(1);
-    if (!uraianBersih) uraianBersih = "Transaksi AI";
-
+    let uraian = kalimat.charAt(0).toUpperCase() + kalimat.slice(1);
     let noBuktiVal = `AI-${String(daftarTransaksi.length + 1).padStart(3, '0')}`;
+    let tglHariIni = getTodayDateString();
 
-    // 5. Masukkan ke dalam Daftar Transaksi
     daftarTransaksi.push({
         id: Date.now(),
         noBukti: noBuktiVal,
-        tanggal: tanggalTransaksi, // Tanggal hasil ekstraksi AI
-        uraian: uraianBersih,     // Uraian bersih (terpisah dari tanggal & harga)
-        jenis: jenis,             // Kategori terpisah (pengeluaran / penerimaan)
-        jumlah: jumlah,           // Harga / nominal terpisah
+        tanggal: tglHariIni,
+        uraian: uraian,
+        jenis: jenis,
+        jumlah: jumlah,
         fileName: null,
         fileData: null
     });
 
-    // Otomatis sesuaikan filter bulan & tahun dropdown agar langsung tampil di tabel
-    let tglSplit = tanggalTransaksi.split('-');
-    if (filterTahun) filterTahun.value = tglSplit[0];
-    if (filterBulan) filterBulan.value = tglSplit[1];
-
-    aiResponse.innerText = `✨ Sukses! [${jenis.toUpperCase()}] | Tgl: ${tanggalTransaksi} | Uraian: "${uraianBersih}" | Harga: Rp ${jumlah.toLocaleString('id-ID')}`;
-    inputAiPrompt.value = ""; 
-    
-    currentPage = 1;
+    aiResponse.innerText = `✨ Sukses! [${jenis.toUpperCase()}] "${uraian}" sebesar Rp ${jumlah.toLocaleString('id-ID')}`;
+    inputAiPrompt.value = "";
     perbaruiAplikasi();
 }
 
@@ -632,106 +532,22 @@ if (btnTambahKas) btnTambahKas.addEventListener('click', () => { let v = prompt(
 if (btnSaldoBank) btnSaldoBank.addEventListener('click', () => { let v = prompt("Saldo Bank:", konfigurasi.saldoBank); if(v!==null){konfigurasi.saldoBank=parseInt(v)||0; perbaruiAplikasi();} });
 if (btnPajak) btnPajak.addEventListener('click', () => { let v = prompt("Pajak Belum Disetor:", konfigurasi.pajakBelumDisetor); if(v!==null){konfigurasi.pajakBelumDisetor=parseInt(v)||0; perbaruiAplikasi();} });
 
-// ==========================================
-// LOGIKA CANVAS DRAWING TANDA TANGAN (MOUSE & TOUCH)
-// ==========================================
-let isDrawing = false;
-let lastX = 0;
-let lastY = 0;
+let isDrawing = false, lastX = 0, lastY = 0;
+btnBukaDrawing.addEventListener('click', () => { modalDrawing.style.display = 'block'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; });
+btnTutupDrawing.addEventListener('click', () => { modalDrawing.style.display = 'none'; });
+btnClearCanvas.addEventListener('click', () => { ctx.clearRect(0, 0, canvas.width, canvas.height); });
 
-if (btnBukaDrawing && modalDrawing && canvas) {
-    btnBukaDrawing.addEventListener('click', function() {
-        modalDrawing.style.display = 'block';
-        ctx.strokeStyle = '#000';
-        ctx.lineWidth = 2;
-        ctx.lineJoin = 'round';
-        ctx.lineCap = 'round';
-    });
+canvas.addEventListener('mousedown', (e) => { isDrawing = true; lastX = e.offsetX; lastY = e.offsetY; });
+canvas.addEventListener('mousemove', (e) => { if(!isDrawing)return; ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); lastX = e.offsetX; lastY = e.offsetY; });
+window.addEventListener('mouseup', () => { isDrawing = false; });
+btnSimpanDrawing.addEventListener('click', () => {
+    konfigurasi.tandaTanganUrl = canvas.toDataURL('image/png');
+    imgTandaTangan.src = konfigurasi.tandaTanganUrl;
+    imgTandaTangan.style.display = 'block';
+    modalDrawing.style.display = 'none';
+    perbaruiAplikasi();
+});
 
-    btnTutupDrawing.addEventListener('click', function() {
-        modalDrawing.style.display = 'none';
-    });
-
-    btnClearCanvas.addEventListener('click', function() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-    });
-
-    // Fungsi pembantu untuk mencocokkan koordinat mouse dengan ukuran asli canvas
-    function getMousePos(canvasElem, e) {
-        const rect = canvasElem.getBoundingClientRect();
-        return {
-            x: (e.clientX - rect.left) * (canvasElem.width / rect.width),
-            y: (e.clientY - rect.top) * (canvasElem.height / rect.height)
-        };
-    }
-
-    // Fungsi pembantu untuk mencocokkan koordinat sentuhan layar (HP/Tablet)
-    function getTouchPos(canvasElem, e) {
-        const rect = canvasElem.getBoundingClientRect();
-        return {
-            x: (e.touches[0].clientX - rect.left) * (canvasElem.width / rect.width),
-            y: (e.touches[0].clientY - rect.top) * (canvasElem.height / rect.height)
-        };
-    }
-
-    // 1. Event untuk Mouse (Komputer / Laptop)
-    canvas.addEventListener('mousedown', (e) => {
-        isDrawing = true;
-        const pos = getMousePos(canvas, e);
-        lastX = pos.x;
-        lastY = pos.y;
-    });
-
-    canvas.addEventListener('mousemove', (e) => {
-        if (!isDrawing) return;
-        const pos = getMousePos(canvas, e);
-        ctx.beginPath();
-        ctx.moveTo(lastX, lastY);
-        ctx.lineTo(pos.x, pos.y);
-        ctx.stroke();
-        lastX = pos.x;
-        lastY = pos.y;
-    });
-
-    window.addEventListener('mouseup', () => {
-        isDrawing = false;
-    });
-
-    // 2. Event untuk Touchscreen (Smartphone / Tablet)
-    canvas.addEventListener('touchstart', (e) => {
-        isDrawing = true;
-        const pos = getTouchPos(canvas, e);
-        lastX = pos.x;
-        lastY = pos.y;
-        e.preventDefault(); // Mencegah layar ikut bergeser/scrolling saat tanda tangan
-    }, { passive: false });
-
-    canvas.addEventListener('touchmove', (e) => {
-        if (!isDrawing) return;
-        const pos = getTouchPos(canvas, e);
-        ctx.beginPath();
-        ctx.moveTo(lastX, lastY);
-        ctx.lineTo(pos.x, pos.y);
-        ctx.stroke();
-        lastX = pos.x;
-        lastY = pos.y;
-        e.preventDefault();
-    }, { passive: false });
-
-    window.addEventListener('touchend', () => {
-        isDrawing = false;
-    });
-
-    // Simpan Tanda Tangan ke Konfigurasi
-    btnSimpanDrawing.addEventListener('click', function() {
-        konfigurasi.tandaTanganUrl = canvas.toDataURL('image/png');
-        imgTandaTangan.src = konfigurasi.tandaTanganUrl;
-        imgTandaTangan.style.display = 'block';
-        modalDrawing.style.display = 'none';
-        perbaruiAplikasi();
-        alert("Tanda tangan berhasil disimpan!");
-    });
-}
 btnPengaturan.addEventListener('click', () => {
     inputProgram.value = konfigurasi.program;
     inputKegiatan.value = konfigurasi.kegiatan;
@@ -754,32 +570,6 @@ btnSimpanPengaturan.addEventListener('click', () => {
     alert("Pengaturan disimpan!");
 });
 
-    
-// ==========================================
-// FUNGSI GENERATE QR CODE OTOMATIS
-// ==========================================
-function buatQRCode() {
-    const container = document.getElementById('qrcodeContainer');
-    if (!container) return;
-    
-    // Kosongkan dulu agar tidak menumpuk
-    container.innerHTML = "";
-
-    // Ambil URL website saat ini (misal link GitHub Pages Anda, atau localhost)
-    let urlWebsite = window.location.href;
-
-    // Buat QR Code
-    new QRCode(container, {
-        text: urlWebsite,
-        width: 75,
-        height: 75,
-        colorDark: "#000000",
-        colorLight: "#ffffff",
-        correctLevel: QRCode.CorrectLevel.H
-    });
-}
-
-
 btnCetak.addEventListener('click', () => window.print());
 btnEkspor.addEventListener('click', () => {
     let ttd = konfigurasi.tandaTanganUrl ? `<img src="${konfigurasi.tandaTanganUrl}" height="60"/>` : `<br/><br/>`;
@@ -790,33 +580,5 @@ btnEkspor.addEventListener('click', () => {
     a.download = `BKU_${filterBulan.value}_${filterTahun.value}.xls`;
     a.click();
 });
+
 document.addEventListener("DOMContentLoaded", () => perbaruiAplikasi());
-
-
-const btnResetData = document.getElementById('btnResetData');
-
-
-if (btnResetData) {
-    btnResetData.addEventListener('click', function() {
-        if (confirm("⚠️ PERINGATAN: Apakah Anda yakin ingin mereset semua data transaksi, kas fisik, dan pajak menjadi nol? Tindakan ini tidak dapat dibatalkan!")) {
-            // Kosongkan daftar transaksi
-            daftarTransaksi = [];
-            
-            // Reset konfigurasi kas fisik & pajak kembali ke 0
-            konfigurasi.kasTunai = 0;
-            konfigurasi.saldoBank = 0;
-            konfigurasi.suratBerharga = 0;
-            konfigurasi.pajakBelumDisetor = 0;
-            konfigurasi.tandaTanganUrl = "";
-
-            // Hapus data dari localStorage browser
-            localStorage.removeItem('bku_transaksi');
-            localStorage.removeItem('bku_konfigurasi');
-
-            // Perbarui tampilan aplikasi
-            perbaruiAplikasi();
-            alert("Semua data berhasil direset menjadi nol!");
-        }
-    });
-}
-
