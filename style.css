@@ -108,7 +108,6 @@ body {
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 4px;
-    margin-bottom: 15px;
     box-sizing: border-box;
 }
 
@@ -156,8 +155,8 @@ td {
     font-size: 14px;
 }
 
-table th:nth-child(3), 
-table td:nth-child(3) {
+table th:nth-child(4), 
+table td:nth-child(4) {
     text-align: left;
     max-width: 300px;
     word-wrap: break-word;
@@ -262,7 +261,6 @@ table td:nth-child(3) {
     font-weight: bold;
 }
 
-/* Modal Pengaturan & Transaksi Styling */
 .modal {
     display: none;
     position: fixed;
@@ -304,7 +302,6 @@ table td:nth-child(3) {
     box-sizing: border-box;
 }
 
-/* Desain Shadow / Placeholder Text */
 ::placeholder {
     color: #aaa;
     font-style: italic;
@@ -337,7 +334,7 @@ table td:nth-child(3) {
 }
 
 @media print {
-    .action-buttons, .search-bar, .tabs, .add-transaction, .action-icons, .btn-mini {
+    .action-buttons, .search-bar, .tabs, .add-transaction, .action-icons, .btn-mini, th:first-child, td:first-child {
         display: none !important;
     }
 }
