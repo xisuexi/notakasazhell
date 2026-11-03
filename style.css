@@ -333,18 +333,8 @@ table td:nth-child(4) {
     cursor: pointer;
 }
 
-.select-periode {
-    padding: 6px 10px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
-    background-color: white;
-    font-size: 14px;
-    cursor: pointer;
-}
-
 @media print {
-    .action-buttons, .search-bar, .tabs, .add-transaction, .action-icons, .btn-mini, th:first-child, td:first-child,
-    .filter-periode, .pagination-container, select {
+    .action-buttons, .search-bar, .tabs, .add-transaction, .action-icons, .btn-mini, th:first-child, td:first-child {
         display: none !important;
     }
 }
