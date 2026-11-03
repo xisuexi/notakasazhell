@@ -655,6 +655,167 @@ btnEkspor.addEventListener('click', function() {
     document.body.removeChild(a);
 });
 
+// Simpan Transaksi (Dengan Fitur Baca File Base64 agar Bisa Dilihat)
+btnSimpanTransaksi.addEventListener('click', function() {
+    let idEdit = editIndexId.value;
+    let tgl = inputTanggal.value;
+    let noBuktiVal = inputNoBukti.value;
+    let jenisVal = inputJenis.value;
+    let uraianVal = inputUraian.value.trim();
+    let jumlahVal = parseInt(inputJumlah.value);
+    let fileObj = inputFile.files[0];
+
+    if (!tgl || !uraianVal || isNaN(jumlahVal) || jumlahVal <= 0) {
+        alert("Mohon isi tanggal, uraian, dan nominal dengan benar!");
+        return;
+    }
+
+    // Fungsi Pembantu untuk Menyimpan Data Transaksi
+    function prosesSimpan(fileDataUrl = null, fileNameVal = null) {
+        if (idEdit) {
+            let trx = daftarTransaksi.find(t => t.id == idEdit);
+            if (trx) {
+                trx.tanggal = tgl;
+                trx.jenis = jenisVal;
+                trx.uraian = uraianVal;
+                trx.jumlah = jumlahVal;
+                if (fileDataUrl) {
+                    trx.fileData = fileDataUrl;
+                    trx.fileName = fileNameVal;
+                }
+            }
+            alert("Transaksi berhasil diperbarui!");
+        } else {
+            daftarTransaksi.push({
+                id: Date.now(),
+                noBukti: noBuktiVal,
+                tanggal: tgl,
+                uraian: uraianVal,
+                jenis: jenisVal,
+                jumlah: jumlahVal,
+                fileName: fileNameVal,
+                fileData: fileDataUrl // Menyimpan isi file dalam format Base64
+            });
+            alert("Transaksi berhasil ditambahkan!");
+        }
+
+        modalTransaksi.style.display = 'none';
+        perbaruiAplikasi();
+    }
+
+    // Cek jika ada file yang diunggah
+    if (fileObj) {
+        if (fileObj.size > 2 * 1024 * 1024) {
+            alert("Ukuran file terlalu besar! Maksimal ukuran file adalah 2MB.");
+            return;
+        }
+
+        // Baca file dan ubah ke Base64 agar bisa dilihat nanti
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            prosesSimpan(e.target.result, fileObj.name);
+        };
+        reader.readAsDataURL(fileObj);
+    } else {
+        // Jika tidak ada file baru yang diunggah
+        let trxLama = idEdit ? daftarTransaksi.find(t => t.id == idEdit) : null;
+        prosesSimpan(trxLama ? trxLama.fileData : null, trxLama ? trxLama.fileName : null);
+    }
+});
+
+function renderTabel(data, totalPenerimaan, totalPengeluaran, sisaKas) {
+    tabelBody.innerHTML = '';
+
+    let htmlContent = `
+        <tr class="summary-row">
+            <td></td>
+            <td>-</td>
+            <td>-</td>
+            <td><strong>Saldo Awal / Saldo Sebelumnya</strong></td>
+            <td>-</td>
+            <td>-</td>
+            <td>${konfigurasi.saldoAwal.toLocaleString('id-ID')}</td>
+            <td></td>
+        </tr>
+    `;
+
+    if (data.length === 0) {
+        htmlContent += `<tr><td colspan="8" style="text-align: center; color: #888;">Tidak ada transaksi ditemukan</td></tr>`;
+    } else {
+        data.forEach((trx, index) => {
+            let kolomPenerimaan = trx.jenis === 'penerimaan' ? trx.jumlah.toLocaleString('id-ID') : '-';
+            let kolomPengeluaran = trx.jenis === 'pengeluaran' ? trx.jumlah.toLocaleString('id-ID') : '-';
+            
+            // Tombol atau link untuk melihat file
+            let infoFile = '';
+            if (trx.fileData) {
+                infoFile = `<br><a href="#" onclick="lihatFile(${trx.id}); return false;" style="color: #00796b; font-size: 12px; text-decoration: underline;">📎 Lihat File (${trx.fileName})</a>`;
+            } else if (trx.fileName) {
+                infoFile = `<br><small style="color: #888;">📎 ${trx.fileName}</small>`;
+            }
+            
+            htmlContent += `
+                <tr>
+                    <td><input type="checkbox" class="row-checkbox" data-id="${trx.id}"></td>
+                    <td><strong>${index + 1}</strong></td>
+                    <td>${trx.tanggal}<br><small style="color:#666;">${trx.noBukti}</small></td>
+                    <td>
+                        <div class="teks-uraian">${trx.uraian}</div>
+                        <div class="sub-teks-uraian">Kategori: ${trx.jenis.toUpperCase()}</div>
+                        ${infoFile}
+                    </td>
+                    <td>${kolomPenerimaan}</td>
+                    <td class="${trx.jenis === 'pengeluaran' ? 'expense' : ''}">${kolomPengeluaran}</td>
+                    <td>${sisaKas.toLocaleString('id-ID')}</td>
+                    <td class="action-icons">
+                        <img src="https://img.icons8.com/material-outlined/20/737373/edit.png" onclick="bukaModalEdit(${trx.id})" title="Edit"/>
+                        <img src="https://img.icons8.com/material-outlined/20/737373/trash.png" onclick="hapusTransaksi(${trx.id})" title="Hapus"/>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    htmlContent += `
+        <tr class="final-row">
+            <td></td>
+            <td></td>
+            <td><strong>TOTAL</strong></td>
+            <td></td>
+            <td><strong>${totalPenerimaan.toLocaleString('id-ID')}</strong></td>
+            <td><strong>${totalPengeluaran.toLocaleString('id-ID')}</strong></td>
+            <td><strong>${sisaKas.toLocaleString('id-ID')}</strong></td>
+            <td></td>
+        </tr>
+    `;
+
+    tabelBody.innerHTML = htmlContent;
+}
+// Fungsi untuk membuka dan melihat file PDF/JPG di tab baru
+window.lihatFile = function(id) {
+    let trx = daftarTransaksi.find(t => t.id === id);
+    if (!trx || !trx.fileData) {
+        alert("File tidak ditemukan atau tidak tersimpan dengan benar.");
+        return;
+    }
+
+    // Buka jendela/tab baru untuk menampilkan file
+    let win = window.open();
+    if (win) {
+        win.document.write(`
+            <html>
+                <head><title>Pratinjau File - ${trx.fileName}</title></head>
+                <body style="margin:0; background: #333; display: flex; justify-content: center; align-items: center; min-height: 100vh;">
+                    <iframe src="${trx.fileData}" frameborder="0" style="width: 100%; height: 100vh;"></iframe>
+                </body>
+            </html>
+        `);
+    } else {
+        alert("Pop-up diblokir oleh browser! Mohon izinkan pop-up untuk melihat file.");
+    }
+};
+
+
 document.addEventListener("DOMContentLoaded", function() {
     perbaruiAplikasi();
 });
