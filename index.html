@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -61,7 +60,7 @@
                 <button>Penerimaan</button>
                 <button>Pengeluaran</button>
             </div>
-            <button class="add-transaction" id="btnBukaFormTrx">+ Transaksi</button>
+            <button class="add-transaction" id="btnBukaModalTransaksi">+ Transaksi</button>
             <table>
                 <thead>
                     <tr>
@@ -71,12 +70,11 @@
                         <th>PENERIMAAN</th>
                         <th>PENGELUARAN</th>
                         <th>SALDO</th>
-                        <th>BUKTI</th>
                         <th>AKSI</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <!-- Data akan dirender otomatis oleh JavaScript -->
+                    <!-- Data dirender otomatis oleh JavaScript -->
                 </tbody>
             </table>
         </div>
@@ -122,36 +120,36 @@
         </div>
     </div>
 
-    <!-- MODAL FORM TAMBAH TRANSAKSI -->
-    <div id="modalTambahTrx" class="modal">
+    <!-- MODAL TAMBAH TRANSAKSI -->
+    <div id="modalTransaksi" class="modal">
         <div class="modal-content">
             <h2>Tambah Transaksi Baru</h2>
             <hr style="margin-bottom: 15px; border: 0; border-top: 1px solid #ccc;">
-
-            <label>No. Transaksi:</label>
-            <input type="text" id="inputNoTrx" class="modal-input" readonly style="background-color: #f0f0f0;">
+            
+            <label>No. Bukti / Nomor Otomatis:</label>
+            <input type="text" id="inputNoBukti" class="modal-input" readonly style="background-color: #e9ecef;">
 
             <label>Tanggal Transaksi:</label>
-            <input type="date" id="inputTanggalTrx" class="modal-input">
+            <input type="date" id="inputTanggal" class="modal-input">
 
             <label>Jenis Transaksi (Uraian Kategori):</label>
-            <select id="inputJenisTrx" class="modal-input">
+            <select id="inputJenis" class="modal-input">
                 <option value="penerimaan">Penerimaan</option>
-                <option value="pengeluaran">Pengeluaran</option>
+                <option value="pengeluaran" selected>Pengeluaran</option>
             </select>
 
             <label>Uraian / Keterangan:</label>
-            <input type="text" id="inputUraianTrx" class="modal-input" placeholder="Contoh: Belanja ATK Kantor / Pembayaran Honor...">
+            <input type="text" id="inputUraian" class="modal-input" placeholder="Contoh: Belanja ATK Kantor / Pembayaran Honor...">
 
             <label>Nominal (Rp):</label>
-            <input type="number" id="inputJumlahTrx" class="modal-input" placeholder="Masukkan angka nominal tanpa titik...">
+            <input type="number" id="inputJumlah" class="modal-input" placeholder="Masukkan angka nominal tanpa titik...">
 
-            <label>Upload File Pendukung (PDF / JPG, Maks 2MB):</label>
-            <input type="file" id="inputFileTrx" class="modal-input" accept=".pdf, .jpg, .jpeg">
+            <label>Data Pendukung (PDF / JPG, Maks 2MB):</label>
+            <input type="file" id="inputFile" class="modal-input" accept=".pdf, .jpg, .jpeg">
 
-            <div class="modal-buttons" style="margin-top: 15px;">
-                <button id="btnSimpanTransaksiBaru" class="btn-save">Simpan</button>
-                <button id="btnTutupFormTrx" class="btn-close">Batal</button>
+            <div class="modal-buttons">
+                <button id="btnSimpanTransaksi" class="btn-save">Simpan Transaksi</button>
+                <button id="btnTutupModalTransaksi" class="btn-close">Batal</button>
             </div>
         </div>
     </div>
@@ -164,19 +162,14 @@
             
             <label>Program:</label>
             <input type="text" id="inputProgram" class="modal-input">
-
             <label>Kegiatan:</label>
             <input type="text" id="inputKegiatan" class="modal-input">
-
             <label>Sub Kegiatan:</label>
             <input type="text" id="inputSubKegiatan" class="modal-input">
-
             <label>Saldo Awal (Angka Saja):</label>
             <input type="number" id="inputSaldoAwal" class="modal-input">
-
-            <label>Nama Kuasa Pengguna Anggaran (Mengetahui):</label>
+            <label>Nama Kuasa Pengguna Anggaran:</label>
             <input type="text" id="inputNamaKPA" class="modal-input">
-
             <label>NIP:</label>
             <input type="text" id="inputNIPKPA" class="modal-input">
 
@@ -192,13 +185,10 @@
         <div class="modal-content" style="text-align: center;">
             <h2>Layar Drawing Tanda Tangan</h2>
             <p style="font-size: 13px; color: #666; margin-bottom: 10px;">Silakan buat tanda tangan di kotak bawah:</p>
-            
             <canvas id="canvasTandaTangan" width="400" height="200" style="border: 1px solid #ccc; background-color: #fff; cursor: crosshair; touch-action: none; width: 100%; max-width: 400px; border-radius: 4px;"></canvas>
-            
             <div style="margin-top: 10px;">
                 <button id="btnClearCanvas" class="btn-close" style="background-color: #c62828; color: white; padding: 6px 12px; font-size: 12px;">Hapus / Ulangi</button>
             </div>
-
             <div class="modal-buttons" style="margin-top: 20px;">
                 <button id="btnSimpanDrawing" class="btn-save">Gunakan Tanda Tangan</button>
                 <button id="btnTutupDrawing" class="btn-close">Batal</button>
