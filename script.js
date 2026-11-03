@@ -112,10 +112,10 @@ const inputNIPKPA = document.getElementById('inputNIPKPA');
 
 function formatRupiah(angka) {
     return 'Rp ' + angka.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-}
 const inputAiPrompt = document.getElementById('inputAiPrompt');
 const btnKirimAi = document.getElementById('btnKirimAi');
 const aiResponse = document.getElementById('aiResponse');
+}
 // ==========================================
 // 3. FUNGSI UTAMA RENDER & KALKULASI
 // ==========================================
