@@ -620,21 +620,107 @@ if (btnTambahKas) btnTambahKas.addEventListener('click', () => { let v = prompt(
 if (btnSaldoBank) btnSaldoBank.addEventListener('click', () => { let v = prompt("Saldo Bank:", konfigurasi.saldoBank); if(v!==null){konfigurasi.saldoBank=parseInt(v)||0; perbaruiAplikasi();} });
 if (btnPajak) btnPajak.addEventListener('click', () => { let v = prompt("Pajak Belum Disetor:", konfigurasi.pajakBelumDisetor); if(v!==null){konfigurasi.pajakBelumDisetor=parseInt(v)||0; perbaruiAplikasi();} });
 
-let isDrawing = false, lastX = 0, lastY = 0;
-btnBukaDrawing.addEventListener('click', () => { modalDrawing.style.display = 'block'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; });
-btnTutupDrawing.addEventListener('click', () => { modalDrawing.style.display = 'none'; });
-btnClearCanvas.addEventListener('click', () => { ctx.clearRect(0, 0, canvas.width, canvas.height); });
-
-canvas.addEventListener('mousedown', (e) => { isDrawing = true; lastX = e.offsetX; lastY = e.offsetY; });
-canvas.addEventListener('mousemove', (e) => { if(!isDrawing)return; ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); lastX = e.offsetX; lastY = e.offsetY; });
-window.addEventListener('mouseup', () => { isDrawing = false; });
-btnSimpanDrawing.addEventListener('click', () => {
-    konfigurasi.tandaTanganUrl = canvas.toDataURL('image/png');
-    imgTandaTangan.src = konfigurasi.tandaTanganUrl;
-    imgTandaTangan.style.display = 'block';
-    modalDrawing.style.display = 'none';
-    perbaruiAplikasi();
 });
+// ==========================================
+// LOGIKA CANVAS DRAWING TANDA TANGAN (MOUSE & TOUCH)
+// ==========================================
+let isDrawing = false;
+let lastX = 0;
+let lastY = 0;
+
+if (btnBukaDrawing && modalDrawing && canvas) {
+    btnBukaDrawing.addEventListener('click', function() {
+        modalDrawing.style.display = 'block';
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 2;
+        ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
+    });
+
+    btnTutupDrawing.addEventListener('click', function() {
+        modalDrawing.style.display = 'none';
+    });
+
+    btnClearCanvas.addEventListener('click', function() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+    });
+
+    // Fungsi pembantu untuk mencocokkan koordinat mouse dengan ukuran asli canvas
+    function getMousePos(canvasElem, e) {
+        const rect = canvasElem.getBoundingClientRect();
+        return {
+            x: (e.clientX - rect.left) * (canvasElem.width / rect.width),
+            y: (e.clientY - rect.top) * (canvasElem.height / rect.height)
+        };
+    }
+
+    // Fungsi pembantu untuk mencocokkan koordinat sentuhan layar (HP/Tablet)
+    function getTouchPos(canvasElem, e) {
+        const rect = canvasElem.getBoundingClientRect();
+        return {
+            x: (e.touches[0].clientX - rect.left) * (canvasElem.width / rect.width),
+            y: (e.touches[0].clientY - rect.top) * (canvasElem.height / rect.height)
+        };
+    }
+
+    // 1. Event untuk Mouse (Komputer / Laptop)
+    canvas.addEventListener('mousedown', (e) => {
+        isDrawing = true;
+        const pos = getMousePos(canvas, e);
+        lastX = pos.x;
+        lastY = pos.y;
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+        if (!isDrawing) return;
+        const pos = getMousePos(canvas, e);
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        lastX = pos.x;
+        lastY = pos.y;
+    });
+
+    window.addEventListener('mouseup', () => {
+        isDrawing = false;
+    });
+
+    // 2. Event untuk Touchscreen (Smartphone / Tablet)
+    canvas.addEventListener('touchstart', (e) => {
+        isDrawing = true;
+        const pos = getTouchPos(canvas, e);
+        lastX = pos.x;
+        lastY = pos.y;
+        e.preventDefault(); // Mencegah layar ikut bergeser/scrolling saat tanda tangan
+    }, { passive: false });
+
+    canvas.addEventListener('touchmove', (e) => {
+        if (!isDrawing) return;
+        const pos = getTouchPos(canvas, e);
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+        lastX = pos.x;
+        lastY = pos.y;
+        e.preventDefault();
+    }, { passive: false });
+
+    window.addEventListener('touchend', () => {
+        isDrawing = false;
+    });
+
+    // Simpan Tanda Tangan ke Konfigurasi
+    btnSimpanDrawing.addEventListener('click', function() {
+        konfigurasi.tandaTanganUrl = canvas.toDataURL('image/png');
+        imgTandaTangan.src = konfigurasi.tandaTanganUrl;
+        imgTandaTangan.style.display = 'block';
+        modalDrawing.style.display = 'none';
+        perbaruiAplikasi();
+        alert("Tanda tangan berhasil disimpan!");
+    });
+}
 
 btnPengaturan.addEventListener('click', () => {
     inputProgram.value = konfigurasi.program;
