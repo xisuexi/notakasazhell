@@ -16,20 +16,22 @@ let konfigurasi = JSON.parse(localStorage.getItem('bku_konfigurasi')) || {
 };
 
 let daftarTransaksi = JSON.parse(localStorage.getItem('bku_transaksi')) || [
-    { id: 1, noBukti: "TRX-001", tanggal: "2021-10-01", uraian: "Pengadaan Rapat Koordinasi SKPD", jenis: "pengeluaran", jumlah: 400000, fileName: null }
+    { id: 1, noBukti: "TRX-001", tanggal: "2026-11-01", uraian: "Pengadaan Rapat Koordinasi SKPD", jenis: "pengeluaran", jumlah: 400000, fileName: null }
 ];
 
 let filterAktif = "Semua";
 let keywordPencarian = "";
+let currentPage = 1;
+let rowsPerPage = 10;
 
 function simpanData() {
     localStorage.setItem('bku_konfigurasi', JSON.stringify(konfigurasi));
     localStorage.setItem('bku_transaksi', JSON.stringify(daftarTransaksi));
 }
 
-function getTanggalHariIniFormat() {
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
-    return new Date().toLocaleDateString('id-ID', options);
+function getNamaBulan(angkaBulan) {
+    const bulan = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli", "Agustus", "September", "Oktober", "November", "Desember"];
+    return bulan[parseInt(angkaBulan) - 1];
 }
 
 function getTodayDateString() {
@@ -66,13 +68,21 @@ const elValPajak = document.getElementById('valPajak');
 const elTextWarning = document.getElementById('textWarning');
 const elWarningBox = document.querySelector('.warning-box');
 
-const inputPencarian = document.querySelector('.search-bar input');
+const inputPencarian = document.querySelector('.search-bar-input');
+const selectLimit = document.getElementById('selectLimit');
+const filterBulan = document.getElementById('filterBulan');
+const filterTahun = document.getElementById('filterTahun');
+
 const tombolTabs = document.querySelectorAll('.tabs button');
 const tabelBody = document.querySelector('table tbody');
 const selectAllCheckbox = document.getElementById('selectAll');
 const btnHapusTerpilih = document.getElementById('btnHapusTerpilih');
+const btnPrevPage = document.getElementById('btnPrevPage');
+const btnNextPage = document.getElementById('btnNextPage');
+const pageIndicator = document.getElementById('pageIndicator');
+const infoPagination = document.getElementById('infoPagination');
 
-// Tombol Aksi Utama
+// Tombol Utama & Modal
 const btnCetak = document.getElementById('btnCetak');
 const btnEkspor = document.getElementById('btnEkspor');
 const btnPengaturan = document.getElementById('btnPengaturan');
@@ -81,7 +91,6 @@ const btnSaldoBank = document.getElementById('btnSaldoBank');
 const btnPajak = document.getElementById('btnPajak');
 const btnBukaDrawing = document.getElementById('btnBukaDrawing');
 
-// Modal Transaksi & Edit
 const modalTransaksi = document.getElementById('modalTransaksi');
 const modalTitle = document.getElementById('modalTitle');
 const btnBukaModalTransaksi = document.getElementById('btnBukaModalTransaksi');
@@ -95,7 +104,6 @@ const inputUraian = document.getElementById('inputUraian');
 const inputJumlah = document.getElementById('inputJumlah');
 const inputFile = document.getElementById('inputFile');
 
-// Modal Pengaturan & Drawing
 const modalPengaturan = document.getElementById('modalPengaturan');
 const btnTutupModal = document.getElementById('btnTutupModal');
 const btnSimpanPengaturan = document.getElementById('btnSimpanPengaturan');
@@ -113,7 +121,6 @@ const inputSaldoAwal = document.getElementById('inputSaldoAwal');
 const inputNamaKPA = document.getElementById('inputNamaKPA');
 const inputNIPKPA = document.getElementById('inputNIPKPA');
 
-// Mesin AI Elemen
 const inputAiPrompt = document.getElementById('inputAiPrompt');
 const btnKirimAi = document.getElementById('btnKirimAi');
 const aiResponse = document.getElementById('aiResponse');
@@ -144,7 +151,7 @@ function perbaruiAplikasi() {
     elViewSubKegiatan.innerText = konfigurasi.subKegiatan;
     elViewNamaKPA.innerText = konfigurasi.namaKPA;
     elViewNIPKPA.innerText = konfigurasi.nipKPA;
-    elTanggalCetakFooter.innerText = getTanggalHariIniFormat();
+    elTanggalCetakFooter.innerText = `1 ${getNamaBulan(filterBulan.value)} ${filterTahun.value}`;
 
     if (konfigurasi.tandaTanganUrl) {
         imgTandaTangan.src = konfigurasi.tandaTanganUrl;
@@ -175,7 +182,17 @@ function perbaruiAplikasi() {
         }
     }
 
+    // Filter berdasarkan Periode (Bulan & Tahun), Tab, dan Pencarian
+    let selectedBulan = filterBulan.value;
+    let selectedTahun = filterTahun.value;
+
     let transaksiTampil = daftarTransaksi.filter(trx => {
+        let tglParts = trx.tanggal.split('-'); // Format YYYY-MM-DD
+        let trxTahun = tglParts[0];
+        let trxIBulan = tglParts[1];
+
+        let matchPeriode = (trxTahun === selectedTahun && trxIBulan === selectedBulan);
+        
         let matchTab = true;
         if (filterAktif === 'Penerimaan') matchTab = trx.jenis === 'penerimaan';
         if (filterAktif === 'Pengeluaran') matchTab = trx.jenis === 'pengeluaran';
@@ -183,7 +200,8 @@ function perbaruiAplikasi() {
         let matchSearch = trx.uraian.toLowerCase().includes(keywordPencarian.toLowerCase()) || 
                           trx.tanggal.includes(keywordPencarian) ||
                           trx.noBukti.toLowerCase().includes(keywordPencarian.toLowerCase());
-        return matchTab && matchSearch;
+        
+        return matchPeriode && matchTab && matchSearch;
     });
 
     renderTabel(transaksiTampil, totalPenerimaan, totalPengeluaran, sisaKas);
@@ -192,6 +210,22 @@ function perbaruiAplikasi() {
 
 function renderTabel(data, totalPenerimaan, totalPengeluaran, sisaKas) {
     tabelBody.innerHTML = '';
+
+    // Logika Pagination
+    let totalData = data.length;
+    let totalPages = Math.ceil(totalData / rowsPerPage) || 1;
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    let startIndex = (currentPage - 1) * rowsPerPage;
+    let endIndex = startIndex + rowsPerPage;
+    let paginatedData = data.slice(startIndex, endIndex);
+
+    // Update Teks Informasi Pagination
+    infoPagination.innerText = `Menampilkan ${totalData > 0 ? startIndex + 1 : 0} - ${Math.min(endIndex, totalData)} dari ${totalData} data`;
+    pageIndicator.innerText = `${currentPage} / ${totalPages}`;
+
+    btnPrevPage.disabled = currentPage === 1;
+    btnNextPage.disabled = currentPage === totalPages || totalPages === 0;
 
     let htmlContent = `
         <tr class="summary-row">
@@ -206,18 +240,19 @@ function renderTabel(data, totalPenerimaan, totalPengeluaran, sisaKas) {
         </tr>
     `;
 
-    if (data.length === 0) {
-        htmlContent += `<tr><td colspan="8" style="text-align: center; color: #888;">Tidak ada transaksi ditemukan</td></tr>`;
+    if (paginatedData.length === 0) {
+        htmlContent += `<tr><td colspan="8" style="text-align: center; color: #888;">Tidak ada transaksi ditemukan pada periode ini</td></tr>`;
     } else {
-        data.forEach((trx, index) => {
+        paginatedData.forEach((trx, index) => {
+            let nomorUrut = startIndex + index + 1;
             let kolomPenerimaan = trx.jenis === 'penerimaan' ? trx.jumlah.toLocaleString('id-ID') : '-';
             let kolomPengeluaran = trx.jenis === 'pengeluaran' ? trx.jumlah.toLocaleString('id-ID') : '-';
-            let infoFile = trx.fileName ? `<br><small style="color: #00796b;">📎 ${trx.fileName}</small>` : '';
+            let infoFile = trx.fileName ? `<br><small style="color: #00796b; cursor:pointer;" onclick="lihatFile(${trx.id})">📎 Lihat File (${trx.fileName})</small>` : '';
             
             htmlContent += `
                 <tr>
                     <td><input type="checkbox" class="row-checkbox" data-id="${trx.id}"></td>
-                    <td><strong>${index + 1}</strong></td>
+                    <td><strong>${nomorUrut}</strong></td>
                     <td>${trx.tanggal}<br><small style="color:#666;">${trx.noBukti}</small></td>
                     <td>
                         <div class="teks-uraian">${trx.uraian}</div>
@@ -253,8 +288,50 @@ function renderTabel(data, totalPenerimaan, totalPengeluaran, sisaKas) {
 }
 
 // ==========================================
-// 4. MULTIPLE DELETE (HAPUS TERPILIH)
+// 4. EVENT LISTENERS FILTER, PAGINATION & PENCARIAN
 // ==========================================
+if (filterBulan) {
+    filterBulan.addEventListener('change', function() { currentPage = 1; perbaruiAplikasi(); });
+}
+if (filterTahun) {
+    filterTahun.addEventListener('change', function() { currentPage = 1; perbaruiAplikasi(); });
+}
+if (selectLimit) {
+    selectLimit.addEventListener('change', function() {
+        rowsPerPage = parseInt(this.value);
+        currentPage = 1;
+        perbaruiAplikasi();
+    });
+}
+if (btnPrevPage) {
+    btnPrevPage.addEventListener('click', function() {
+        if (currentPage > 1) { currentPage--; perbaruiAplikasi(); }
+    });
+}
+if (btnNextPage) {
+    btnNextPage.addEventListener('click', function() {
+        currentPage++; perbaruiAplikasi();
+    });
+}
+
+if (inputPencarian) {
+    inputPencarian.addEventListener('input', function(e) {
+        keywordPencarian = e.target.value;
+        currentPage = 1;
+        perbaruiAplikasi();
+    });
+}
+
+tombolTabs.forEach(btn => {
+    btn.addEventListener('click', function() {
+        tombolTabs.forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        filterAktif = this.innerText;
+        currentPage = 1;
+        perbaruiAplikasi();
+    });
+});
+
 if (selectAllCheckbox) {
     selectAllCheckbox.addEventListener('change', function() {
         const checkboxes = document.querySelectorAll('.row-checkbox');
@@ -283,26 +360,9 @@ if (btnHapusTerpilih) {
 // ==========================================
 // 5. FORM TAMBAH & EDIT TRANSAKSI
 // ==========================================
-if (inputPencarian) {
-    inputPencarian.addEventListener('input', function(e) {
-        keywordPencarian = e.target.value;
-        perbaruiAplikasi();
-    });
-}
-
-tombolTabs.forEach(btn => {
-    btn.addEventListener('click', function() {
-        tombolTabs.forEach(b => b.classList.remove('active'));
-        this.classList.add('active');
-        filterAktif = this.innerText;
-        perbaruiAplikasi();
-    });
-});
-
-// Buka Modal Tambah Transaksi Baru
 btnBukaModalTransaksi.addEventListener('click', function() {
     modalTitle.innerText = "Tambah Transaksi Baru";
-    editIndexId.value = ""; // Kosongkan tanda edit
+    editIndexId.value = "";
     const nomorUrutBaru = String(daftarTransaksi.length + 1).padStart(3, '0');
     inputNoBukti.value = `TRX-${nomorUrutBaru}`;
     inputTanggal.value = getTodayDateString();
@@ -313,19 +373,18 @@ btnBukaModalTransaksi.addEventListener('click', function() {
     modalTransaksi.style.display = 'block';
 });
 
-// Buka Modal Edit Transaksi
 window.bukaModalEdit = function(id) {
     let trx = daftarTransaksi.find(t => t.id === id);
     if (!trx) return;
 
     modalTitle.innerText = "Edit Transaksi";
-    editIndexId.value = trx.id; // Simpan ID transaksi yang sedang diedit
+    editIndexId.value = trx.id;
     inputNoBukti.value = trx.noBukti;
     inputTanggal.value = trx.tanggal;
     inputJenis.value = trx.jenis;
     inputUraian.value = trx.uraian;
     inputJumlah.value = trx.jumlah;
-    inputFile.value = ''; // Reset file input
+    inputFile.value = '';
     modalTransaksi.style.display = 'block';
 };
 
@@ -333,7 +392,6 @@ btnTutupModalTransaksi.addEventListener('click', function() {
     modalTransaksi.style.display = 'none';
 });
 
-// Simpan Transaksi (Bisa untuk Tambah Baru atau Edit)
 btnSimpanTransaksi.addEventListener('click', function() {
     let idEdit = editIndexId.value;
     let tgl = inputTanggal.value;
@@ -348,47 +406,52 @@ btnSimpanTransaksi.addEventListener('click', function() {
         return;
     }
 
-    let fileNameVal = null;
+    function prosesSimpan(fileDataUrl = null, fileNameVal = null) {
+        if (idEdit) {
+            let trx = daftarTransaksi.find(t => t.id == idEdit);
+            if (trx) {
+                trx.tanggal = tgl;
+                trx.jenis = jenisVal;
+                trx.uraian = uraianVal;
+                trx.jumlah = jumlahVal;
+                if (fileDataUrl) {
+                    trx.fileData = fileDataUrl;
+                    trx.fileName = fileNameVal;
+                }
+            }
+            alert("Transaksi berhasil diperbarui!");
+        } else {
+            daftarTransaksi.push({
+                id: Date.now(),
+                noBukti: noBuktiVal,
+                tanggal: tgl,
+                uraian: uraianVal,
+                jenis: jenisVal,
+                jumlah: jumlahVal,
+                fileName: fileNameVal,
+                fileData: fileDataUrl
+            });
+            alert("Transaksi berhasil ditambahkan!");
+        }
+
+        modalTransaksi.style.display = 'none';
+        perbaruiAplikasi();
+    }
+
     if (fileObj) {
         if (fileObj.size > 2 * 1024 * 1024) {
             alert("Ukuran file terlalu besar! Maksimal ukuran file adalah 2MB.");
             return;
         }
-        fileNameVal = fileObj.name;
-    }
-
-    if (idEdit) {
-        // Mode Edit: Update data transaksi yang ada
-        let trx = daftarTransaksi.find(t => t.id == idEdit);
-        if (trx) {
-            trx.tanggal = tgl;
-            trx.jenis = jenisVal;
-            trx.uraian = uraianVal;
-            trx.jumlah = jumlahVal;
-            if (fileNameVal) {
-                trx.fileName = fileNameVal; // Update file jika ada upload baru
-            }
-        }
-        alert("Transaksi berhasil diperbarui!");
+        const reader = new FileReader();
+        reader.onload = function(e) { prosesSimpan(e.target.result, fileObj.name); };
+        reader.readAsDataURL(fileObj);
     } else {
-        // Mode Tambah Baru
-        daftarTransaksi.push({
-            id: Date.now(),
-            noBukti: noBuktiVal,
-            tanggal: tgl,
-            uraian: uraianVal,
-            jenis: jenisVal,
-            jumlah: jumlahVal,
-            fileName: fileNameVal
-        });
-        alert("Transaksi berhasil ditambahkan!");
+        let trxLama = idEdit ? daftarTransaksi.find(t => t.id == idEdit) : null;
+        prosesSimpan(trxLama ? trxLama.fileData : null, trxLama ? trxLama.fileName : null);
     }
-
-    modalTransaksi.style.display = 'none';
-    perbaruiAplikasi();
 });
 
-// Hapus Single Transaksi
 window.hapusTransaksi = function(id) {
     if (confirm("Yakin ingin menghapus transaksi ini?")) {
         daftarTransaksi = daftarTransaksi.filter(trx => trx.id !== id);
@@ -396,45 +459,41 @@ window.hapusTransaksi = function(id) {
     }
 };
 
+window.lihatFile = function(id) {
+    let trx = daftarTransaksi.find(t => t.id === id);
+    if (!trx || !trx.fileData) { alert("File tidak ditemukan."); return; }
+    let win = window.open();
+    if (win) {
+        win.document.write(`<iframe src="${trx.fileData}" frameborder="0" style="width:100%; height:100vh;"></iframe>`);
+    }
+};
+
 // ==========================================
-// 6. MESIN AI: DIPISAH 2 (PENGELUARAN & PENERIMAAN)
+// 6. MESIN AI
 // ==========================================
 if (btnKirimAi && inputAiPrompt) {
     btnKirimAi.addEventListener('click', function() {
         let teks = inputAiPrompt.value.trim();
-        if (!teks) {
-            aiResponse.innerText = "⚠️ Masukkan kalimat perintah untuk AI terlebih dahulu.";
-            return;
-        }
+        if (!teks) { aiResponse.innerText = "⚠️ Masukkan kalimat perintah AI."; return; }
         AIProsesTransaksi(teks);
     });
 }
 
 function AIProsesTransaksi(kalimat) {
     let teksLower = kalimat.toLowerCase();
-    
-    // PEMISAHAN AI MENJADI 2 KATEGORI UTAMA
-    let jenis = "pengeluaran"; // default
-    const kataPenerimaan = ["terima", "dapat", "masuk", "pendapatan", "sumbangan", "hibah", "bantuan", "setoran", "penerimaan"];
-    
+    let jenis = "pengeluaran";
+    const kataPenerimaan = ["terima", "dapat", "masuk", "pendapatan", "sumbangan", "hibah", "bantuan", "setoran"];
     for (let kata of kataPenerimaan) {
-        if (teksLower.includes(kata)) {
-            jenis = "penerimaan";
-            break;
-        }
+        if (teksLower.includes(kata)) { jenis = "penerimaan"; break; }
     }
 
     let jumlah = 0;
     if (teksLower.includes('juta') || teksLower.includes('jt')) {
-        let matchJuta = teksLower.match(/(\d+[\.,]?\d*)\s*(juta|jt)/);
-        if (matchJuta) {
-            jumlah = parseFloat(matchJuta[1].replace(',', '.')) * 1000000;
-        }
+        let match = teksLower.match(/(\d+[\.,]?\d*)\s*(juta|jt)/);
+        if (match) jumlah = parseFloat(match[1].replace(',', '.')) * 1000000;
     } else if (teksLower.includes('ribu') || teksLower.includes('rb')) {
-        let matchRibu = teksLower.match(/(\d+[\.,]?\d*)\s*(ribu|rb)/);
-        if (matchRibu) {
-            jumlah = parseFloat(matchRibu[1].replace(',', '.')) * 1000;
-        }
+        let match = teksLower.match(/(\d+[\.,]?\d*)\s*(ribu|rb)/);
+        if (match) jumlah = parseFloat(match[1].replace(',', '.')) * 1000;
     } else {
         let matchAngka = teksLower.match(/\d+[\.,]?\d*/g);
         if (matchAngka) {
@@ -444,7 +503,7 @@ function AIProsesTransaksi(kalimat) {
     }
 
     if (isNaN(jumlah) || jumlah <= 0) {
-        aiResponse.innerText = "❌ AI gagal mendeteksi nominal angka. Coba tulis nominal dengan jelas (contoh: 50rb atau 1 juta).";
+        aiResponse.innerText = "❌ AI gagal mendeteksi nominal angka.";
         return;
     }
 
@@ -457,127 +516,31 @@ function AIProsesTransaksi(kalimat) {
         noBukti: noBuktiVal,
         tanggal: tglHariIni,
         uraian: uraian,
-        jenis: jenis, // Otomatis terbagi ke 'penerimaan' atau 'pengeluaran'
+        jenis: jenis,
         jumlah: jumlah,
-        fileName: null
+        fileName: null,
+        fileData: null
     });
 
-    aiResponse.innerText = `✨ Sukses! AI memproses sebagai [${jenis.toUpperCase()}] "${uraian}" sebesar Rp ${jumlah.toLocaleString('id-ID')}`;
-    inputAiPrompt.value = ""; 
+    aiResponse.innerText = `✨ Sukses! [${jenis.toUpperCase()}] "${uraian}" sebesar Rp ${jumlah.toLocaleString('id-ID')}`;
+    inputAiPrompt.value = "";
     perbaruiAplikasi();
 }
 
-// Rekonsiliasi Tombol Cepat
-if (btnTambahKas) {
-    btnTambahKas.addEventListener('click', function() {
-        let nilaiBaru = prompt("Masukkan jumlah Kas Tunai fisik (Angka saja):", konfigurasi.kasTunai);
-        if (nilaiBaru !== null && !isNaN(nilaiBaru)) {
-            konfigurasi.kasTunai = parseInt(nilaiBaru);
-            perbaruiAplikasi();
-        }
-    });
-}
+// Tombol Cepat Rekonsiliasi & Drawing Canvas
+if (btnTambahKas) btnTambahKas.addEventListener('click', () => { let v = prompt("Kas Tunai:", konfigurasi.kasTunai); if(v!==null){konfigurasi.kasTunai=parseInt(v)||0; perbaruiAplikasi();} });
+if (btnSaldoBank) btnSaldoBank.addEventListener('click', () => { let v = prompt("Saldo Bank:", konfigurasi.saldoBank); if(v!==null){konfigurasi.saldoBank=parseInt(v)||0; perbaruiAplikasi();} });
+if (btnPajak) btnPajak.addEventListener('click', () => { let v = prompt("Pajak Belum Disetor:", konfigurasi.pajakBelumDisetor); if(v!==null){konfigurasi.pajakBelumDisetor=parseInt(v)||0; perbaruiAplikasi();} });
 
-if (btnSaldoBank) {
-    btnSaldoBank.addEventListener('click', function() {
-        let nilaiBaru = prompt("Masukkan jumlah Saldo Bank (Angka saja):", konfigurasi.saldoBank);
-        if (nilaiBaru !== null && !isNaN(nilaiBaru)) {
-            konfigurasi.saldoBank = parseInt(nilaiBaru);
-            perbaruiAplikasi();
-        }
-    });
-}
+let isDrawing = false, lastX = 0, lastY = 0;
+btnBukaDrawing.addEventListener('click', () => { modalDrawing.style.display = 'block'; ctx.strokeStyle = '#000'; ctx.lineWidth = 2; });
+btnTutupDrawing.addEventListener('click', () => { modalDrawing.style.display = 'none'; });
+btnClearCanvas.addEventListener('click', () => { ctx.clearRect(0, 0, canvas.width, canvas.height); });
 
-if (btnPajak) {
-    btnPajak.addEventListener('click', function() {
-        let nilaiBaru = prompt("Masukkan jumlah Pajak Belum Disetor (Angka saja):", konfigurasi.pajakBelumDisetor);
-        if (nilaiBaru !== null && !isNaN(nilaiBaru)) {
-            konfigurasi.pajakBelumDisetor = parseInt(nilaiBaru);
-            perbaruiAplikasi();
-        }
-    });
-}
-
-// Logika Canvas Drawing Tanda Tangan
-let isDrawing = false;
-let lastX = 0;
-let lastY = 0;
-
-btnBukaDrawing.addEventListener('click', function() {
-    modalDrawing.style.display = 'block';
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 2;
-    ctx.lineJoin = 'round';
-    ctx.lineCap = 'round';
-});
-
-btnTutupDrawing.addEventListener('click', function() {
-    modalDrawing.style.display = 'none';
-});
-
-btnClearCanvas.addEventListener('click', function() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-});
-
-function getMousePos(e) {
-    const rect = canvas.getBoundingClientRect();
-    return {
-        x: (e.clientX - rect.left) * (canvas.width / rect.width),
-        y: (e.clientY - rect.top) * (canvas.height / rect.height)
-    };
-}
-
-function getTouchPos(e) {
-    const rect = canvas.getBoundingClientRect();
-    return {
-        x: (e.touches[0].clientX - rect.left) * (canvas.width / rect.width),
-        y: (e.touches[0].clientY - rect.top) * (canvas.height / rect.height)
-    };
-}
-
-canvas.addEventListener('mousedown', (e) => {
-    isDrawing = true;
-    const pos = getMousePos(e);
-    lastX = pos.x;
-    lastY = pos.y;
-});
-
-canvas.addEventListener('mousemove', (e) => {
-    if (!isDrawing) return;
-    const pos = getMousePos(e);
-    ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
-    lastX = pos.x;
-    lastY = pos.y;
-});
-
+canvas.addEventListener('mousedown', (e) => { isDrawing = true; lastX = e.offsetX; lastY = e.offsetY; });
+canvas.addEventListener('mousemove', (e) => { if(!isDrawing)return; ctx.beginPath(); ctx.moveTo(lastX, lastY); ctx.lineTo(e.offsetX, e.offsetY); ctx.stroke(); lastX = e.offsetX; lastY = e.offsetY; });
 window.addEventListener('mouseup', () => { isDrawing = false; });
-
-canvas.addEventListener('touchstart', (e) => {
-    isDrawing = true;
-    const pos = getTouchPos(e);
-    lastX = pos.x;
-    lastY = pos.y;
-    e.preventDefault();
-});
-
-canvas.addEventListener('touchmove', (e) => {
-    if (!isDrawing) return;
-    const pos = getTouchPos(e);
-    ctx.beginPath();
-    ctx.moveTo(lastX, lastY);
-    ctx.lineTo(pos.x, pos.y);
-    ctx.stroke();
-    lastX = pos.x;
-    lastY = pos.y;
-    e.preventDefault();
-});
-
-window.addEventListener('touchend', () => { isDrawing = false; });
-
-btnSimpanDrawing.addEventListener('click', function() {
+btnSimpanDrawing.addEventListener('click', () => {
     konfigurasi.tandaTanganUrl = canvas.toDataURL('image/png');
     imgTandaTangan.src = konfigurasi.tandaTanganUrl;
     imgTandaTangan.style.display = 'block';
@@ -585,8 +548,7 @@ btnSimpanDrawing.addEventListener('click', function() {
     perbaruiAplikasi();
 });
 
-// Pengaturan Modal Dokumen
-btnPengaturan.addEventListener('click', function() {
+btnPengaturan.addEventListener('click', () => {
     inputProgram.value = konfigurasi.program;
     inputKegiatan.value = konfigurasi.kegiatan;
     inputSubKegiatan.value = konfigurasi.subKegiatan;
@@ -595,66 +557,28 @@ btnPengaturan.addEventListener('click', function() {
     inputNIPKPA.value = konfigurasi.nipKPA;
     modalPengaturan.style.display = 'block';
 });
-
-btnTutupModal.addEventListener('click', function() {
-    modalDrawing.style.display = 'none';
-    modalPengaturan.style.display = 'none';
-});
-
-btnSimpanPengaturan.addEventListener('click', function() {
+btnTutupModal.addEventListener('click', () => { modalPengaturan.style.display = 'none'; modalDrawing.style.display = 'none'; });
+btnSimpanPengaturan.addEventListener('click', () => {
     konfigurasi.program = inputProgram.value;
     konfigurasi.kegiatan = inputKegiatan.value;
     konfigurasi.subKegiatan = inputSubKegiatan.value;
     konfigurasi.saldoAwal = parseInt(inputSaldoAwal.value) || 0;
     konfigurasi.namaKPA = inputNamaKPA.value;
     konfigurasi.nipKPA = inputNIPKPA.value;
-
     modalPengaturan.style.display = 'none';
     perbaruiAplikasi();
-    alert("Pengaturan berhasil disimpan!");
+    alert("Pengaturan disimpan!");
 });
 
-// Cetak & Ekspor File
-btnCetak.addEventListener('click', function() {
-    window.print();
-});
-
-btnEkspor.addEventListener('click', function() {
-    let ttdHtml = konfigurasi.tandaTanganUrl ? `<img src="${konfigurasi.tandaTanganUrl}" height="60"/>` : `<br/><br/>`;
-    
-    let htmlContent = `
-        <html>
-        <head><meta charset="utf-8"></head>
-        <body>
-            <h3>Buku Kas Umum</h3>
-            <p><strong>Tanggal Ekspor:</strong> ${getTanggalHariIniFormat()}</p>
-            <p><strong>Program:</strong> ${konfigurasi.program}</p>
-            <p><strong>Kegiatan:</strong> ${konfigurasi.kegiatan}</p>
-            <p><strong>Sub Kegiatan:</strong> ${konfigurasi.subKegiatan}</p>
-            <br/>
-            <table border="1">
-                ${document.querySelector('table').innerHTML}
-            </table>
-            <br/><br/>
-            <p>Mengetahui,</p>
-            <p>Kuasa Pengguna Anggaran</p>
-            <div>${ttdHtml}</div>
-            <p><b>${konfigurasi.namaKPA}</b></p>
-            <p>NIP. ${konfigurasi.nipKPA}</p>
-        </body>
-        </html>
-    `;
-
-    let blob = new Blob(['\ufeff' + htmlContent], { type: 'application/vnd.ms-excel' });
-    let url = URL.createObjectURL(blob);
+btnCetak.addEventListener('click', () => window.print());
+btnEkspor.addEventListener('click', () => {
+    let ttd = konfigurasi.tandaTanganUrl ? `<img src="${konfigurasi.tandaTanganUrl}" height="60"/>` : `<br/><br/>`;
+    let html = `<html><head><meta charset="utf-8"></head><body><h3>Buku Kas Umum</h3><table border="1">${document.querySelector('table').innerHTML}</table><br/>${ttd}</body></html>`;
+    let blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel' });
     let a = document.createElement('a');
-    a.href = url;
-    a.download = `Buku_Kas_Umum_${new Date().toISOString().slice(0,10)}.xls`;
-    document.body.appendChild(a);
+    a.href = URL.createObjectURL(blob);
+    a.download = `BKU_${filterBulan.value}_${filterTahun.value}.xls`;
     a.click();
-    document.body.removeChild(a);
 });
 
-document.addEventListener("DOMContentLoaded", function() {
-    perbaruiAplikasi();
-});
+document.addEventListener("DOMContentLoaded", () => perbaruiAplikasi());
