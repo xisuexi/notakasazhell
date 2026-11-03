@@ -582,3 +582,29 @@ btnEkspor.addEventListener('click', () => {
 });
 
 document.addEventListener("DOMContentLoaded", () => perbaruiAplikasi());
+
+const btnResetData = document.getElementById('btnResetData');
+
+if (btnResetData) {
+    btnResetData.addEventListener('click', function() {
+        if (confirm("⚠️ PERINGATAN: Apakah Anda yakin ingin mereset semua data transaksi, kas fisik, dan pajak menjadi nol? Tindakan ini tidak dapat dibatalkan!")) {
+            // Kosongkan daftar transaksi
+            daftarTransaksi = [];
+            
+            // Reset konfigurasi kas fisik & pajak kembali ke 0
+            konfigurasi.kasTunai = 0;
+            konfigurasi.saldoBank = 0;
+            konfigurasi.suratBerharga = 0;
+            konfigurasi.pajakBelumDisetor = 0;
+            konfigurasi.tandaTanganUrl = "";
+
+            // Hapus data dari localStorage browser
+            localStorage.removeItem('bku_transaksi');
+            localStorage.removeItem('bku_konfigurasi');
+
+            // Perbarui tampilan aplikasi
+            perbaruiAplikasi();
+            alert("Semua data berhasil direset menjadi nol!");
+        }
+    });
+}
